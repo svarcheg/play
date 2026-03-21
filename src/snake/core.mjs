@@ -232,7 +232,7 @@ ctx1.stroke()
 draw_booth(ctx1, ((canvas_w / 2) - 40), 5, 80, 22, booth_closed11);
 ctx1.strokeStyle = "#8b7355";
 ctx1.lineWidth = 1;
-ctx1.setLineDash = [4, 4];
+ctx1.setLineDash([4, 4]);
 for (let G__16 of squint_core.iterable([60, 140, 260, 340])) {
 const rx17 = G__16;
 ctx1.beginPath();

@@ -285,7 +285,7 @@
     ;; queue rope lines (decorative)
     (set! (.-strokeStyle ctx) "#8b7355")
     (set! (.-lineWidth ctx) 1)
-    (set! (.-setLineDash ctx) #js [4 4])
+    (.setLineDash ctx #js [4 4])
     (doseq [rx [60 140 260 340]]
       (.beginPath ctx)
       (.moveTo ctx rx 30)
