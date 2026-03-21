@@ -251,7 +251,7 @@
   (let [canvas (get-canvas)
         container (js/document.getElementById "game-container")
         mw (.-clientWidth container)
-        mh (min (- (.-innerHeight js/window) 200) (* grid-h cell-size 2))
+        mh (.-clientHeight container)
         sx (/ mw canvas-w)
         sy (/ mh canvas-h)
         s (min sx sy 2)]
