@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>Snake Game</title>
+  <title>JFK Queue Simulator</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      background: #0f0f23;
-      color: #e0e0e0;
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #2c3e50;
+      color: #ecf0f1;
+      font-family: 'Courier New', monospace;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -24,30 +24,33 @@
       user-select: none;
     }
 
+    .header {
+      text-align: center;
+      padding: 4px 0;
+    }
+
     h1 {
-      font-size: 1.4rem;
-      margin-top: 6px;
-      background: linear-gradient(135deg, #00d2ff, #0099cc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      font-size: 1.1rem;
+      color: #e74c3c;
+      letter-spacing: 2px;
+    }
+
+    .subtitle {
+      font-size: 0.65rem;
+      color: #7f8c8d;
+      margin-top: 1px;
     }
 
     .scoreboard {
       display: flex;
-      gap: 24px;
-      margin: 4px 0;
-      font-size: 0.9rem;
+      gap: 16px;
+      margin: 3px 0;
+      font-size: 0.8rem;
     }
 
-    .scoreboard span {
-      color: #888;
-    }
-
-    .scoreboard .value {
-      color: #00d2ff;
-      font-weight: bold;
-    }
+    .scoreboard span { color: #95a5a6; }
+    .scoreboard .value { color: #e74c3c; font-weight: bold; }
+    .scoreboard .minutes { color: #f39c12; }
 
     #game-container {
       display: flex;
@@ -61,10 +64,8 @@
     }
 
     #game-canvas {
-      border: 2px solid #16213e;
-      border-radius: 8px;
-      image-rendering: pixelated;
-      image-rendering: crisp-edges;
+      border: 2px solid #5d4e37;
+      border-radius: 4px;
     }
 
     .dpad {
@@ -73,19 +74,19 @@
         ". up ."
         "left . right"
         ". down .";
-      gap: 4px;
-      margin-top: 6px;
+      gap: 3px;
+      margin-top: 4px;
       flex-shrink: 0;
     }
 
     .dpad button {
-      width: 50px;
-      height: 50px;
-      border: 2px solid #16213e;
-      border-radius: 10px;
-      background: #1a1a2e;
-      color: #00d2ff;
-      font-size: 1.3rem;
+      width: 46px;
+      height: 46px;
+      border: 2px solid #5d4e37;
+      border-radius: 8px;
+      background: #34495e;
+      color: #e74c3c;
+      font-size: 1.1rem;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -95,8 +96,8 @@
     }
 
     .dpad button:active {
-      background: #16213e;
-      border-color: #00d2ff;
+      background: #5d4e37;
+      border-color: #e74c3c;
     }
 
     #btn-up { grid-area: up; }
@@ -105,11 +106,33 @@
     #btn-right { grid-area: right; }
 
     .hint {
-      margin: 4px 0;
-      font-size: 0.7rem;
-      color: #555;
+      margin: 3px 0;
+      font-size: 0.65rem;
+      color: #5d6d7e;
       text-align: center;
       flex-shrink: 0;
+    }
+
+    .legend {
+      display: flex;
+      gap: 12px;
+      font-size: 0.6rem;
+      color: #7f8c8d;
+      margin: 2px 0;
+      flex-shrink: 0;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
     }
 
     @media (min-width: 769px) {
@@ -117,18 +140,25 @@
     }
 
     @media (max-width: 768px) {
-      h1 { font-size: 1.2rem; margin-top: 4px; }
-      .scoreboard { font-size: 0.85rem; margin: 2px 0; }
-      .dpad { gap: 3px; margin-top: 4px; }
-      .dpad button { width: 46px; height: 46px; font-size: 1.1rem; }
+      h1 { font-size: 1rem; }
+      .dpad button { width: 44px; height: 44px; font-size: 1rem; }
     }
   </style>
 </head>
 <body>
-  <h1>SNAKE</h1>
+  <div class="header">
+    <h1>JFK QUEUE SIMULATOR</h1>
+    <div class="subtitle">Border Control Experience&trade; &mdash; Now with 100% more suffering</div>
+  </div>
   <div class="scoreboard">
-    <div><span>Score: </span><span class="value" id="score">0</span></div>
-    <div><span>Best: </span><span class="value" id="high-score">0</span></div>
+    <div><span>Queue: </span><span class="value" id="score">0</span></div>
+    <div><span>Wasted: </span><span class="minutes" id="minutes">0</span><span class="minutes">min</span></div>
+    <div><span>Record: </span><span class="value" id="high-score">0</span></div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot" style="background:#2c5f8a"></span> You (the queue)</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#c0392b"></span> Lost passports</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#27ae60"></span> US citizens (dodge!)</div>
   </div>
   <div id="game-container">
     <canvas id="game-canvas"></canvas>
@@ -139,7 +169,7 @@
     <button id="btn-right" aria-label="Right">&#9654;</button>
     <button id="btn-down" aria-label="Down">&#9660;</button>
   </div>
-  <p class="hint">Swipe or use D-pad to move &bull; Tap to pause/restart</p>
+  <p class="hint">Swipe or D-pad to move &bull; Collect passports &bull; Dodge US citizens &bull; Tap to pause</p>
   <script src="js/main.js"></script>
 </body>
 </html>
