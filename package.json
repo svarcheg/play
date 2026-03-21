@@ -1,0 +1,16 @@
+{
+  "name": "snake-game",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "compile": "npx squint-cljs compile src/snake/core.cljs",
+    "bundle": "npx esbuild src/snake/core.mjs --bundle --minify --outfile=docs/js/main.js --format=iife",
+    "build": "npm run compile && npm run bundle"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.4"
+  },
+  "dependencies": {
+    "squint-cljs": "^0.10.186"
+  }
+}

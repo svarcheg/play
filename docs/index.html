@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Snake Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f0f23;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin-top: 12px;
+      background: linear-gradient(135deg, #00d2ff, #0099cc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .scoreboard {
+      display: flex;
+      gap: 24px;
+      margin: 8px 0;
+      font-size: 1rem;
+    }
+
+    .scoreboard span {
+      color: #888;
+    }
+
+    .scoreboard .value {
+      color: #00d2ff;
+      font-weight: bold;
+    }
+
+    #game-container {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      max-width: 500px;
+      padding: 0 8px;
+    }
+
+    #game-canvas {
+      border: 2px solid #16213e;
+      border-radius: 8px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .dpad {
+      display: grid;
+      grid-template-areas:
+        ". up ."
+        "left . right"
+        ". down .";
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .dpad button {
+      width: 60px;
+      height: 60px;
+      border: 2px solid #16213e;
+      border-radius: 12px;
+      background: #1a1a2e;
+      color: #00d2ff;
+      font-size: 1.5rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s;
+    }
+
+    .dpad button:active {
+      background: #16213e;
+      border-color: #00d2ff;
+    }
+
+    #btn-up { grid-area: up; }
+    #btn-down { grid-area: down; }
+    #btn-left { grid-area: left; }
+    #btn-right { grid-area: right; }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: #555;
+      text-align: center;
+    }
+
+    @media (min-width: 769px) {
+      .dpad { display: none; }
+    }
+
+    @media (max-width: 768px) {
+      h1 { font-size: 1.4rem; margin-top: 8px; }
+      .scoreboard { font-size: 0.9rem; margin: 4px 0; }
+      .dpad button { width: 54px; height: 54px; font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+  <h1>SNAKE</h1>
+  <div class="scoreboard">
+    <div><span>Score: </span><span class="value" id="score">0</span></div>
+    <div><span>Best: </span><span class="value" id="high-score">0</span></div>
+  </div>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+  </div>
+  <div class="dpad">
+    <button id="btn-up" aria-label="Up">&#9650;</button>
+    <button id="btn-left" aria-label="Left">&#9664;</button>
+    <button id="btn-right" aria-label="Right">&#9654;</button>
+    <button id="btn-down" aria-label="Down">&#9660;</button>
+  </div>
+  <p class="hint">Swipe or use D-pad to move &bull; Tap to pause/restart</p>
+  <script src="js/main.js"></script>
+</body>
+</html>

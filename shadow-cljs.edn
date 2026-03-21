@@ -1,0 +1,8 @@
+{:source-paths ["src"]
+ :dependencies []
+ :builds {:app {:target :browser
+                :output-dir "docs/js"
+                :asset-path "js"
+                :modules {:main {:init-fn snake.core/init}}
+                :release {:output-dir "docs/js"
+                          :compiler-options {:optimizations :advanced}}}}}
