@@ -186,6 +186,7 @@ return get_canvas().getContext("2d");
 
 };
 var draw_person = function (ctx, x, y, size, color) {
+ctx.save();
 ctx.fillStyle = color;
 ctx.beginPath();
 ctx.arc(x, (y - (size * 0.35)), (size * 0.22), 0, (2 * Math.PI));
@@ -208,7 +209,8 @@ ctx.stroke();
 ctx.beginPath();
 ctx.moveTo(x, (y + (size * 0.15)));
 ctx.lineTo((x + (size * 0.15)), (y + (size * 0.4)));
-return ctx.stroke();
+ctx.stroke();
+return ctx.restore();
 
 };
 var draw_suitcase = function (ctx, x, y) {
@@ -263,6 +265,8 @@ ctx1.fillText("EXPRESS", express_lane_x(), (queue_top - 5));
 ctx1.fillStyle = "#27ae60";
 ctx1.font = "7px monospace";
 ctx1.fillText("US/GLOBAL ENTRY", express_lane_x(), (queue_top - 15));
+ctx1.save();
+ctx1.textAlign = "center";
 for (let G__13 of squint_core.iterable(squint_core.get(st, "booths"))) {
 const b14 = G__13;
 const x15 = (lane_x(squint_core.get(b14, "lane")) - 22);
@@ -271,7 +275,6 @@ ctx1.fillStyle = ((squint_core.truth_(open16)) ? ("#5d4e37") : ("#c0392b"));
 ctx1.fillRect(x15, 10, 44, 35);
 ctx1.fillStyle = "#fff";
 ctx1.font = "bold 8px monospace";
-ctx1.textAlign = "center";
 ctx1.fillText(((squint_core.truth_(open16)) ? ("CBP") : ("CLOSED")), (x15 + 22), 25);
 if (squint_core.truth_(open16)) {
 ctx1.font = "7px monospace";
@@ -282,10 +285,10 @@ ctx1.fillStyle = "#27ae60";
 ctx1.fillRect(ex17, 10, 44, 35);
 ctx1.fillStyle = "#fff";
 ctx1.font = "bold 8px monospace";
-ctx1.textAlign = "center";
 ctx1.fillText("FAST", (ex17 + 22), 25);
 ctx1.font = "7px monospace";
 ctx1.fillText("TRACK", (ex17 + 22), 38);
+ctx1.restore();
 for (let G__18 of squint_core.iterable(squint_core.get(st, "lane-events"))) {
 const ev19 = G__18;
 if ((squint_core.get(ev19, "timer") > 0)) {
@@ -300,17 +303,13 @@ ctx1.fillText(label21, x20, (queue_top + (queue_length / 2)))}
 };
 for (let G__22 of squint_core.iterable(squint_core.get(st, "lane-people"))) {
 const p23 = G__22;
-if (squint_core.truth_(((squint_core.get(p23, "y") > queue_top) && (squint_core.get(p23, "y") < queue_bottom)))) {
-draw_person(ctx1, lane_x(squint_core.get(p23, "lane")), squint_core.get(p23, "y"), 12, "#95a5a6");
-if ((Math.random() < 0.05)) {
-draw_suitcase(ctx1, (lane_x(squint_core.get(p23, "lane")) + 8), squint_core.get(p23, "y"))}}
+if (squint_core.truth_(((squint_core.get(p23, "y") > (queue_top + 20)) && (squint_core.get(p23, "y") < queue_bottom)))) {
+draw_person(ctx1, lane_x(squint_core.get(p23, "lane")), squint_core.get(p23, "y"), 12, "#95a5a6")}
 };
 for (let G__24 of squint_core.iterable(squint_core.get(st, "us-citizens"))) {
 const c25 = G__24;
-draw_person(ctx1, express_lane_x(), squint_core.get(c25, "y"), 13, "#27ae60");
-ctx1.fillStyle = "#27ae60";
-ctx1.font = "7px sans-serif";
-ctx1.textAlign = "center"
+if (squint_core.truth_(((squint_core.get(c25, "y") > (queue_top + 10)) && (squint_core.get(c25, "y") < queue_bottom)))) {
+draw_person(ctx1, express_lane_x(), squint_core.get(c25, "y"), 13, "#27ae60")}
 };
 const px26 = lane_x(squint_core.get(st, "player-lane"));
 const py27 = squint_core.get(st, "player-y");
@@ -331,13 +330,6 @@ ctx1.fillStyle = "#ccc7be";
 ctx1.fillRect(bar_x30, bar_y31, 8, bar_h29);
 ctx1.fillStyle = "#2c5f8a";
 ctx1.fillRect(bar_x30, (bar_y31 + (bar_h29 - (progress28 * bar_h29))), 8, (progress28 * bar_h29));
-ctx1.fillStyle = "#7f8c8d";
-ctx1.font = "7px monospace";
-ctx1.textAlign = "center";
-ctx1.save();
-ctx1.translate((canvas_w - 6), (bar_y31 + (bar_h29 / 2)));
-ctx1.rotate((Math.PI / 2));
-ctx1.restore();
 const frust32 = squint_core.get(st, "frustration");
 const bar_w33 = (canvas_w - 40);
 const bar_x34 = 20;

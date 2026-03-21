@@ -264,6 +264,7 @@
 (defn get-ctx [] (.getContext (get-canvas) "2d"))
 
 (defn draw-person [ctx x y size color]
+  (.save ctx)
   (set! (.-fillStyle ctx) color)
   (.beginPath ctx)
   (.arc ctx x (- y (* size 0.35)) (* size 0.22) 0 (* 2 js/Math.PI))
@@ -286,7 +287,8 @@
   (.beginPath ctx)
   (.moveTo ctx x (+ y (* size 0.15)))
   (.lineTo ctx (+ x (* size 0.15)) (+ y (* size 0.4)))
-  (.stroke ctx))
+  (.stroke ctx)
+  (.restore ctx))
 
 (defn draw-suitcase [ctx x y]
   (set! (.-fillStyle ctx) "#8b7355")
@@ -341,6 +343,8 @@
     (.fillText ctx "US/GLOBAL ENTRY" (express-lane-x) (- queue-top 15))
 
     ;; Booths at top
+    (.save ctx)
+    (set! (.-textAlign ctx) "center")
     (doseq [b (:booths st)]
       (let [x (- (lane-x (:lane b)) 22)
             open (:open b)]
@@ -348,7 +352,6 @@
         (.fillRect ctx x 10 44 35)
         (set! (.-fillStyle ctx) "#fff")
         (set! (.-font ctx) "bold 8px monospace")
-        (set! (.-textAlign ctx) "center")
         (.fillText ctx (if open "CBP" "CLOSED") (+ x 22) 25)
         (when open
           (set! (.-font ctx) "7px monospace")
@@ -360,10 +363,10 @@
       (.fillRect ctx ex 10 44 35)
       (set! (.-fillStyle ctx) "#fff")
       (set! (.-font ctx) "bold 8px monospace")
-      (set! (.-textAlign ctx) "center")
       (.fillText ctx "FAST" (+ ex 22) 25)
       (set! (.-font ctx) "7px monospace")
       (.fillText ctx "TRACK" (+ ex 22) 38))
+    (.restore ctx)
 
     ;; Lane events (blocked lanes)
     (doseq [ev (:lane-events st)]
@@ -379,17 +382,13 @@
 
     ;; Other people in queues
     (doseq [p (:lane-people st)]
-      (when (and (> (:y p) queue-top) (< (:y p) queue-bottom))
-        (draw-person ctx (lane-x (:lane p)) (:y p) 12 "#95a5a6")
-        (when (< (js/Math.random) 0.05)
-          (draw-suitcase ctx (+ (lane-x (:lane p)) 8) (:y p)))))
+      (when (and (> (:y p) (+ queue-top 20)) (< (:y p) queue-bottom))
+        (draw-person ctx (lane-x (:lane p)) (:y p) 12 "#95a5a6")))
 
     ;; US citizens in express lane
     (doseq [c (:us-citizens st)]
-      (draw-person ctx (express-lane-x) (:y c) 13 "#27ae60")
-      (set! (.-fillStyle ctx) "#27ae60")
-      (set! (.-font ctx) "7px sans-serif")
-      (set! (.-textAlign ctx) "center"))
+      (when (and (> (:y c) (+ queue-top 10)) (< (:y c) queue-bottom))
+        (draw-person ctx (express-lane-x) (:y c) 13 "#27ae60")))
 
     ;; Player (you!)
     (let [px (lane-x (:player-lane st))
@@ -415,15 +414,7 @@
       (set! (.-fillStyle ctx) "#ccc7be")
       (.fillRect ctx bar-x bar-y 8 bar-h)
       (set! (.-fillStyle ctx) "#2c5f8a")
-      (.fillRect ctx bar-x (+ bar-y (- bar-h (* progress bar-h))) 8 (* progress bar-h))
-      (set! (.-fillStyle ctx) "#7f8c8d")
-      (set! (.-font ctx) "7px monospace")
-      (set! (.-textAlign ctx) "center")
-      (.save ctx)
-      (.translate ctx (- canvas-w 6) (+ bar-y (/ bar-h 2)))
-      (.rotate ctx (/ js/Math.PI 2))
-      ;; not using fillText rotated, just skip
-      (.restore ctx))
+      (.fillRect ctx bar-x (+ bar-y (- bar-h (* progress bar-h))) 8 (* progress bar-h)))
 
     ;; Frustration bar at bottom
     (let [frust (:frustration st)
