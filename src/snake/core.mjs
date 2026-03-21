@@ -1,131 +1,180 @@
 import * as squint_core from 'squint-cljs/core.js';
-var cell_size = 20;
-var grid_w = 20;
-var grid_h = 25;
-var canvas_w = (grid_w * cell_size);
-var canvas_h = (grid_h * cell_size);
-var initial_tick = 150;
-var min_tick = 80;
-var colors = ({"passport-glow": "rgba(192,57,43,0.25)", "text-light": "#7f8c8d", "booth": "#5d4e37", "grid": "#ccc7be", "queue-body": "#4a7fa8", "overlay": "rgba(0,0,0,0.65)", "booth-closed": "#c0392b", "score-color": "#c0392b", "passport": "#c0392b", "bg": "#e8e4df", "us-citizen": "#27ae60", "floor": "#d4cfc8", "text": "#2c3e50", "queue-head": "#2c5f8a"});
-var commentary = ["Officer 3 is checking their phone again", "A family of 12 just cut in front of you", "Your gate closed 20 minutes ago", "The officer just went on a coffee break", "Someone forgot their documents. Again.", "You can see US citizens breezing through...", "Your luggage is doing laps on the carousel", "3 booths open out of 47. Classic JFK.", "The officer is having a lovely chat", "You've aged 2 years in this line", "A child behind you is screaming. Hour 3.", "Free WiFi expired. Of course it did.", "You start questioning all life decisions", "The line moved! No wait, false alarm.", "Someone is arguing about a visa stamp", "Officer shift change. Line paused 15 min.", "You memorized every ceiling tile by now", "The passport scanner broke. Naturally.", "You missed your connecting flight. Congrats!", "A pigeon got in. Most excitement all day."];
-var state = squint_core.atom(({"us-timer": 0, "tid": null, "next-dir": [1, 0], "paused": false, "us-citizens": [], "dir": [1, 0], "snake": [[10, 12], [9, 12], [8, 12]], "booth-timer": 0, "food": [15, 8], "booth-closed": false, "score": 0, "ticks": 0, "commentary": null, "minutes": 0, "over": false, "commentary-timer": 0, "hi": 0, "tick-ms": initial_tick}));
+var canvas_w = 400;
+var canvas_h = 500;
+var num_lanes = 5;
+var lane_w = (canvas_w / (num_lanes + 1));
+var player_size = 14;
+var queue_top = 60;
+var queue_bottom = 470;
+var queue_length = (queue_bottom - queue_top);
+var base_speed = 0.3;
+var tick_ms = 33;
+var commentary = ["You've been standing here for 47 minutes.", "The officer is having a lovely chat with someone's passport.", "3 booths open. Out of 52. Classic JFK.", "Someone ahead forgot which country they're from.", "Free WiFi expired. Of course.", "A child behind you has been screaming for 40 minutes.", "You start questioning all life decisions.", "The line moved! ...No wait, false alarm.", "You can feel your connecting flight leaving.", "You memorized every ceiling tile by now.", "The passport scanner jammed. Again.", "Officer shift change. Everyone wait 15 minutes.", "A pigeon got in. Most excitement all day.", "Someone is arguing about a visa stamp.", "You've aged visibly since landing.", "Your luggage is doing victory laps on the carousel.", "The guy next to you has been here since Tuesday.", "An officer points you to another lane. It's longer.", "\"Step this way please.\" It's never good news.", "You've been rerouted. The new lane hasn't moved in 20 min.", "Congratulations! You've been selected for the slow lane.", "A US citizen just breezed past you. Took 8 seconds.", "The express lane is moving at the speed of light.", "Global Entry passengers wave at you sympathetically."];
+var redirect_lines = ["\"Sir/Ma'am, please step to lane %d.\"", "An officer escorts you to lane %d. It's worse.", "\"This lane is closing. Move to lane %d.\"", "You've been redirected to lane %d. There are 90 people ahead.", "\"Random security check. Please proceed to lane %d.\""];
+var state = squint_core.atom(({"us-timer": 0, "tid": null, "redirects": 0, "paused": false, "us-citizens": [], "frustration": 0, "player-lane": 2, "redirect-timer": 0, "lane-speeds": [1, 0.8, 1.2, 0.6, 1], "lane-events": [], "player-y": queue_bottom, "score": 0, "lane-people": [], "ticks": 0, "target-lane": null, "commentary": null, "over": false, "booths": [], "commentary-timer": 0, "times-near-front": 0}));
 var touch_st = squint_core.atom(null);
-var rand_pos = function () {
-return [Math.floor((Math.random() * grid_w)), Math.floor((Math.random() * grid_h))];
+var lane_x = function (lane) {
+return ((lane * lane_w) + (lane_w / 2));
 
 };
-var vec_EQ_ = function (a, b) {
-return (squint_core._EQ_(squint_core.first(a), squint_core.first(b)) && squint_core._EQ_(squint_core.second(a), squint_core.second(b)));
+var express_lane_x = function () {
+return ((num_lanes * lane_w) + (lane_w / 2));
 
 };
-var place_food = function (snake) {
-let pos1 = rand_pos();
-let tries2 = 0;
-while(true){
-if (squint_core.truth_((() => {
-const or__23522__auto__3 = (tries2 > 500);
-if (or__23522__auto__3) {
-return or__23522__auto__3} else {
-return squint_core.not(squint_core.some((function (_PERCENT_1) {
-return vec_EQ_(pos1, _PERCENT_1);
-
-}), snake))};
-
-})())) {
-return pos1} else {
-let G__4 = rand_pos();
-let G__5 = (tries2 + 1);
-pos1 = G__4;
-tries2 = G__5;
-continue;
-};
-;break;
-}
-;
-
-};
-var wrap = function (v) {
-return [squint_core.mod(squint_core.first(v), grid_w), squint_core.mod(squint_core.second(v), grid_h)];
+var rand_between = function (a, b) {
+return (a + (Math.random() * (b - a)));
 
 };
 var rand_commentary = function () {
 return squint_core.nth(commentary, Math.floor((Math.random() * squint_core.count(commentary))));
 
 };
-var spawn_us_citizen = function () {
-const side1 = Math.floor((Math.random() * 2));
-const y2 = Math.floor((Math.random() * grid_h));
-if ((side1 === 0)) {
-return ({"x": 0, "y": y2, "dx": 1})} else {
-return ({"x": (grid_w - 1), "y": y2, "dx": -1})};
+var rand_redirect_line = function (lane) {
+const tmpl1 = squint_core.nth(redirect_lines, Math.floor((Math.random() * squint_core.count(redirect_lines))));
+return tmpl1.replace("%d", `${(lane + 1)??''}`);
 
 };
-var move_us_citizens = function (citizens) {
-return squint_core.vec(squint_core.filter((function (c) {
-return ((squint_core.get(c, "x") >= -1) && (squint_core.get(c, "x") <= grid_w));
-
-}), squint_core.map((function (c) {
-return squint_core.update(c, "x", squint_core._PLUS_, squint_core.get(c, "dx"));
-
-}), citizens)));
+var init_lane_people = function () {
+const people1 = squint_core.atom([]);
+for (let G__2 of squint_core.iterable(squint_core.range(num_lanes))) {
+const lane3 = G__2;
+const n4 = (8 + Math.floor((Math.random() * 12)));
+for (let G__5 of squint_core.iterable(squint_core.range(n4))) {
+const i6 = G__5;
+const y7 = (queue_bottom - (i6 * (18 + (Math.random() * 10))));
+if ((y7 > (queue_top + 30))) {
+squint_core.swap_BANG_(people1, squint_core.conj, ({"lane": lane3, "y": y7}))}
+}
+};
+return squint_core.deref(people1);
 
 };
-var move_snake = function (st) {
-if (squint_core.truth_(squint_core.get(st, "over"))) {
+var init_booths = function () {
+return squint_core.vec(squint_core.map((function (i) {
+return ({"lane": i, "open": (Math.random() < 0.5)});
+
+}), squint_core.range(num_lanes)));
+
+};
+var move_forward = function (st) {
+if (squint_core.truth_((() => {
+const or__23522__auto__1 = squint_core.get(st, "over");
+if (squint_core.truth_(or__23522__auto__1)) {
+return or__23522__auto__1} else {
+return squint_core.get(st, "paused")};
+
+})())) {
 return st} else {
-const snake1 = squint_core.get(st, "snake");
-const hd2 = squint_core.first(snake1);
-const nd3 = squint_core.get(st, "next-dir");
-const hx4 = squint_core.first(hd2);
-const hy5 = squint_core.second(hd2);
-const dx6 = squint_core.first(nd3);
-const dy7 = squint_core.second(nd3);
-const new_head8 = wrap([(hx4 + dx6), (hy5 + dy7)]);
-const food9 = squint_core.get(st, "food");
-const ate10 = vec_EQ_(new_head8, food9);
-const new_snake11 = squint_core.into([new_head8], ((squint_core.truth_(ate10)) ? (snake1) : (squint_core.butlast(snake1))));
-const self_collision12 = squint_core.some((function (_PERCENT_1) {
-return vec_EQ_(new_head8, _PERCENT_1);
+const ticks2 = (squint_core.get(st, "ticks") + 1);
+const lane3 = squint_core.get(st, "player-lane");
+const speed4 = (base_speed * squint_core.nth(squint_core.get(st, "lane-speeds"), lane3));
+const lane_blocked5 = squint_core.some((function (ev) {
+return (squint_core._EQ_(squint_core.get(ev, "lane"), lane3) && (squint_core.get(ev, "timer") > 0));
 
-}), squint_core.rest(new_snake11));
-const us_hit13 = squint_core.some((function (c) {
-return (squint_core._EQ_(squint_core.first(new_head8), squint_core.get(c, "x")) && squint_core._EQ_(squint_core.second(new_head8), squint_core.get(c, "y")));
-
-}), squint_core.get(st, "us-citizens"));
-const collision14 = (() => {
-const or__23522__auto__15 = self_collision12;
-if (squint_core.truth_(or__23522__auto__15)) {
-return or__23522__auto__15} else {
-return us_hit13};
+}), squint_core.get(st, "lane-events"));
+const effective_speed6 = ((squint_core.truth_(lane_blocked5)) ? (0) : (speed4));
+const new_y7 = (squint_core.get(st, "player-y") - effective_speed6);
+const booth8 = squint_core.nth(squint_core.get(st, "booths"), lane3);
+const booth_closed9 = squint_core.not(squint_core.get(booth8, "open"));
+const near_front10 = (new_y7 < (queue_top + 50));
+const redirect_cooldown11 = squint_core.get(st, "redirect-timer");
+const should_redirect12 = (near_front10 && ((redirect_cooldown11 < 1) && ((squint_core.get(st, "times-near-front") > 0) && (Math.random() < 0.7))));
+const first_time_near13 = (near_front10 && (squint_core.get(st, "times-near-front") === 0));
+const force_redirect14 = (() => {
+const and__23554__auto__15 = first_time_near13;
+if (squint_core.truth_(and__23554__auto__15)) {
+return (redirect_cooldown11 < 1)} else {
+return and__23554__auto__15};
 
 })();
-const new_score16 = ((squint_core.truth_(ate10)) ? ((squint_core.get(st, "score") + 1)) : (squint_core.get(st, "score")));
-const new_minutes17 = ((squint_core.truth_(ate10)) ? ((squint_core.get(st, "minutes") + (5 + Math.floor((Math.random() * 15))))) : (squint_core.get(st, "minutes")));
-const ticks18 = (squint_core.get(st, "ticks") + 1);
-const new_tick19 = squint_core.max(min_tick, (initial_tick - Math.floor((ticks18 / 3))));
-const ct20 = squint_core.get(st, "commentary-timer");
-const new_ct21 = (((squint_core.mod(ticks18, 40) === 0)) ? (0) : ((ct20 + 1)));
-const new_comment22 = (((new_ct21 === 0)) ? (rand_commentary()) : (squint_core.get(st, "commentary")));
-const ut23 = squint_core.get(st, "us-timer");
-const new_us24 = move_us_citizens(squint_core.get(st, "us-citizens"));
-const spawn_us25 = (squint_core.mod(ticks18, 12) === 0);
-const final_us26 = ((spawn_us25) ? (squint_core.conj(new_us24, spawn_us_citizen())) : (new_us24));
-const bt27 = squint_core.get(st, "booth-timer");
-const booth_event28 = (squint_core.mod(ticks18, 80) === 0);
-const new_booth29 = ((booth_event28) ? (squint_core.not(squint_core.get(st, "booth-closed"))) : (squint_core.get(st, "booth-closed")));
-if (squint_core.truth_(collision14)) {
-return squint_core.assoc(st, "over", true, "hi", squint_core.max(squint_core.get(st, "hi"), squint_core.get(st, "score")), "commentary", ((squint_core.truth_(us_hit13)) ? ("You got trampled by a US citizen in the express lane!") : ("The queue collapsed on itself. Just like your spirit.")))} else {
-const s230 = squint_core.assoc(st, "snake", new_snake11, "dir", nd3, "score", new_score16, "minutes", new_minutes17, "hi", squint_core.max(squint_core.get(st, "hi"), new_score16), "ticks", ticks18, "tick-ms", new_tick19, "commentary", new_comment22, "commentary-timer", new_ct21, "us-citizens", final_us26, "us-timer", (ut23 + 1), "booth-closed", new_booth29, "booth-timer", (bt27 + 1));
-if (squint_core.truth_(ate10)) {
-return squint_core.assoc(s230, "food", place_food(new_snake11))} else {
-return s230};
-};
+const do_redirect16 = (() => {
+const or__23522__auto__17 = should_redirect12;
+if (squint_core.truth_(or__23522__auto__17)) {
+return or__23522__auto__17} else {
+return force_redirect14};
+
+})();
+const other_lanes18 = squint_core.vec(squint_core.filter((function (_PERCENT_1) {
+return !squint_core._EQ_(_PERCENT_1, lane3);
+
+}), squint_core.range(num_lanes)));
+const redirect_lane19 = ((squint_core.truth_(do_redirect16)) ? (squint_core.nth(other_lanes18, Math.floor((Math.random() * squint_core.count(other_lanes18))))) : (null));
+const add_minute20 = (squint_core.mod(ticks2, 90) === 0);
+const new_score21 = ((add_minute20) ? ((squint_core.get(st, "score") + 1)) : (squint_core.get(st, "score")));
+const new_frust22 = squint_core.min(100, (squint_core.get(st, "frustration") + ((squint_core.truth_(lane_blocked5)) ? (0.15) : (0.03)) + ((squint_core.truth_(do_redirect16)) ? (15) : (0))));
+const ct23 = squint_core.get(st, "commentary-timer");
+const show_comment24 = (squint_core.mod(ticks2, 150) === 0);
+const new_comment25 = ((squint_core.truth_(do_redirect16)) ? (rand_redirect_line(redirect_lane19)) : (((show_comment24) ? (rand_commentary()) : ((("else") ? (squint_core.get(st, "commentary")) : (null))))));
+const new_ct26 = ((squint_core.truth_((() => {
+const or__23522__auto__27 = do_redirect16;
+if (squint_core.truth_(or__23522__auto__27)) {
+return or__23522__auto__27} else {
+return show_comment24};
+
+})())) ? (0) : ((ct23 + 1)));
+const new_people28 = squint_core.vec(squint_core.map((function (p) {
+const pspeed29 = (base_speed * squint_core.nth(squint_core.get(st, "lane-speeds"), squint_core.get(p, "lane")) * 0.7);
+const blocked30 = squint_core.some((function (ev) {
+return (squint_core._EQ_(squint_core.get(ev, "lane"), squint_core.get(p, "lane")) && (squint_core.get(ev, "timer") > 0));
+
+}), squint_core.get(st, "lane-events"));
+const ps31 = ((squint_core.truth_(blocked30)) ? (0) : (pspeed29));
+return squint_core.update(p, "y", squint_core._, ps31);
+
+}), squint_core.get(st, "lane-people")));
+const ut32 = squint_core.get(st, "us-timer");
+const spawn_us33 = (squint_core.mod(ticks2, 60) === 0);
+const new_us34 = squint_core.vec(squint_core.filter((function (c) {
+return (squint_core.get(c, "y") > (queue_top - 20));
+
+}), squint_core.map((function (c) {
+return squint_core.update(c, "y", squint_core._, squint_core.get(c, "speed"));
+
+}), squint_core.get(st, "us-citizens"))));
+const final_us35 = ((spawn_us33) ? (squint_core.conj(new_us34, ({"y": queue_bottom, "speed": (2 + (Math.random() * 2))}))) : (new_us34));
+const new_events36 = squint_core.vec(squint_core.map((function (ev) {
+return squint_core.update(ev, "timer", squint_core.dec);
+
+}), squint_core.get(st, "lane-events")));
+const spawn_event37 = ((squint_core.mod(ticks2, 200) === 0) && (Math.random() < 0.6));
+const event_lane38 = Math.floor((Math.random() * num_lanes));
+const final_events39 = ((squint_core.truth_(spawn_event37)) ? (squint_core.conj(squint_core.vec(squint_core.filter((function (_PERCENT_1) {
+return (squint_core.get(_PERCENT_1, "timer") > 0);
+
+}), new_events36)), ({"lane": event_lane38, "type": (((Math.random() < 0.5)) ? ("break") : ("scanner")), "timer": 180}))) : (squint_core.vec(squint_core.filter((function (_PERCENT_1) {
+return (squint_core.get(_PERCENT_1, "timer") > 0);
+
+}), new_events36))));
+const new_speeds40 = (((squint_core.mod(ticks2, 300) === 0)) ? (squint_core.vec(squint_core.map((function (_) {
+return (0.4 + (Math.random() * 1.2));
+
+}), squint_core.range(num_lanes)))) : (squint_core.get(st, "lane-speeds")));
+const new_booths41 = (((squint_core.mod(ticks2, 400) === 0)) ? (squint_core.vec(squint_core.map((function (b) {
+if ((Math.random() < 0.3)) {
+return squint_core.update(b, "open", squint_core.not)} else {
+return b};
+
+}), squint_core.get(st, "booths")))) : (squint_core.get(st, "booths")));
+const reached_booth42 = ((new_y7 < (queue_top + 20)) && (squint_core.not(do_redirect16) && squint_core.get(booth8, "open")));
+const rage_quit43 = (new_frust22 >= 100);
+if (squint_core.truth_(do_redirect16)) {
+return squint_core.assoc(st, "player-lane", redirect_lane19, "player-y", (queue_bottom - (Math.random() * 30)), "ticks", ticks2, "score", new_score21, "redirects", (squint_core.get(st, "redirects") + 1), "times-near-front", (squint_core.get(st, "times-near-front") + 1), "redirect-timer", 300, "frustration", new_frust22, "commentary", new_comment25, "commentary-timer", new_ct26, "lane-people", new_people28, "us-citizens", final_us35, "lane-events", final_events39, "lane-speeds", new_speeds40, "booths", new_booths41)} else {
+if (squint_core.truth_((() => {
+const or__23522__auto__44 = reached_booth42;
+if (squint_core.truth_(or__23522__auto__44)) {
+return or__23522__auto__44} else {
+return rage_quit43};
+
+})())) {
+return squint_core.assoc(st, "over", true, "ticks", ticks2, "score", new_score21, "frustration", new_frust22, "commentary", ((rage_quit43) ? ("You snapped. Security is on their way.") : ("You... actually made it through?! Is this real?")))} else {
+if ("else") {
+return squint_core.assoc(st, "player-y", squint_core.max((queue_top + 15), new_y7), "ticks", ticks2, "score", new_score21, "frustration", new_frust22, "commentary", new_comment25, "commentary-timer", new_ct26, "redirect-timer", squint_core.max(0, (redirect_cooldown11 - 1)), "lane-people", new_people28, "us-citizens", final_us35, "lane-events", final_events39, "lane-speeds", new_speeds40, "booths", new_booths41)} else {
+return null}}};
 };
 
 };
 var reset_game = function (st) {
-const snake1 = [[10, 12], [9, 12], [8, 12]];
-return squint_core.assoc(st, "snake", snake1, "dir", [1, 0], "next-dir", [1, 0], "food", place_food(snake1), "score", 0, "minutes", 0, "over", false, "paused", false, "ticks", 0, "tick-ms", initial_tick, "commentary", "Welcome to JFK. Estimated wait: 2 hours. Actual wait: yes.", "commentary-timer", 0, "us-citizens", [], "us-timer", 0, "booth-closed", false, "booth-timer", 0);
+return squint_core.assoc(st, "player-lane", 2, "player-y", queue_bottom, "lane-speeds", [1, 0.8, 1.2, 0.6, 1], "lane-people", init_lane_people(), "us-citizens", [], "booths", init_booths(), "score", 0, "redirects", 0, "times-near-front", 0, "paused", false, "over", false, "ticks", 0, "commentary", "Welcome to JFK. You just landed. Good luck.", "commentary-timer", 0, "redirect-timer", 0, "lane-events", [], "us-timer", 0, "frustration", 0);
 
 };
 var get_canvas = function () {
@@ -136,205 +185,231 @@ var get_ctx = function () {
 return get_canvas().getContext("2d");
 
 };
-var draw_rounded = function (ctx, x, y, w, h, r) {
-ctx.beginPath();
-ctx.moveTo((x + r), y);
-ctx.lineTo((x + (w - r)), y);
-ctx.quadraticCurveTo((x + w), y, (x + w), (y + r));
-ctx.lineTo((x + w), (y + (h - r)));
-ctx.quadraticCurveTo((x + w), (y + h), (x + (w - r)), (y + h));
-ctx.lineTo((x + r), (y + h));
-ctx.quadraticCurveTo(x, (y + h), x, (y + (h - r)));
-ctx.lineTo(x, (y + r));
-ctx.quadraticCurveTo(x, y, (x + r), y);
-ctx.closePath();
-return ctx.fill();
-
-};
-var draw_person = function (ctx, cx, cy, size, color) {
+var draw_person = function (ctx, x, y, size, color) {
 ctx.fillStyle = color;
 ctx.beginPath();
-ctx.arc(cx, (cy - (size * 0.3)), (size * 0.2), 0, (2 * Math.PI));
+ctx.arc(x, (y - (size * 0.35)), (size * 0.22), 0, (2 * Math.PI));
 ctx.fill();
-ctx.beginPath();
-ctx.moveTo(cx, (cy - (size * 0.1)));
-ctx.lineTo(cx, (cy + (size * 0.2)));
 ctx.strokeStyle = color;
-ctx.lineWidth = (size * 0.12);
+ctx.lineWidth = (size * 0.13);
+ctx.lineCap = "round";
+ctx.beginPath();
+ctx.moveTo(x, (y - (size * 0.12)));
+ctx.lineTo(x, (y + (size * 0.15)));
 ctx.stroke();
 ctx.beginPath();
-ctx.moveTo((cx - (size * 0.25)), cy);
-ctx.lineTo((cx + (size * 0.25)), cy);
+ctx.moveTo((x - (size * 0.22)), (y - (size * 0.02)));
+ctx.lineTo((x + (size * 0.22)), (y - (size * 0.02)));
 ctx.stroke();
 ctx.beginPath();
-ctx.moveTo(cx, (cy + (size * 0.2)));
-ctx.lineTo((cx - (size * 0.15)), (cy + (size * 0.45)));
+ctx.moveTo(x, (y + (size * 0.15)));
+ctx.lineTo((x - (size * 0.15)), (y + (size * 0.4)));
 ctx.stroke();
 ctx.beginPath();
-ctx.moveTo(cx, (cy + (size * 0.2)));
-ctx.lineTo((cx + (size * 0.15)), (cy + (size * 0.45)));
+ctx.moveTo(x, (y + (size * 0.15)));
+ctx.lineTo((x + (size * 0.15)), (y + (size * 0.4)));
 return ctx.stroke();
 
 };
-var draw_passport = function (ctx, cx, cy, size) {
-ctx.fillStyle = squint_core.get(colors, "passport");
-const w1 = (size * 0.7);
-const h2 = (size * 0.9);
-const x3 = (cx - (w1 / 2));
-const y4 = (cy - (h2 / 2));
-draw_rounded(ctx, x3, y4, w1, h2, 2);
-ctx.strokeStyle = "#f1c40f";
-ctx.lineWidth = 1.5;
-ctx.beginPath();
-ctx.arc(cx, cy, (size * 0.18), 0, (2 * Math.PI));
-return ctx.stroke();
-
-};
-var draw_booth = function (ctx, x, y, w, h, closed) {
-ctx.fillStyle = ((squint_core.truth_(closed)) ? (squint_core.get(colors, "booth-closed")) : (squint_core.get(colors, "booth")));
-draw_rounded(ctx, x, y, w, h, 3);
-ctx.fillStyle = "#fff";
-ctx.font = "bold 9px monospace";
-ctx.textAlign = "center";
-return ctx.fillText(((squint_core.truth_(closed)) ? ("CLOSED") : ("OPEN")), (x + (w / 2)), (y + (h / 2) + 3));
+var draw_suitcase = function (ctx, x, y) {
+ctx.fillStyle = "#8b7355";
+ctx.fillRect((x - 4), y, 8, 6);
+ctx.strokeStyle = "#6b5335";
+ctx.lineWidth = 0.5;
+return ctx.strokeRect((x - 4), y, 8, 6);
 
 };
 var render = function (st) {
 const ctx1 = get_ctx();
-const snake2 = squint_core.get(st, "snake");
-const food3 = squint_core.get(st, "food");
-const score4 = squint_core.get(st, "score");
-const hi5 = squint_core.get(st, "hi");
-const minutes6 = squint_core.get(st, "minutes");
-const over7 = squint_core.get(st, "over");
-const paused8 = squint_core.get(st, "paused");
-const commentary9 = squint_core.get(st, "commentary");
-const us_citizens10 = squint_core.get(st, "us-citizens");
-const booth_closed11 = squint_core.get(st, "booth-closed");
-ctx1.fillStyle = squint_core.get(colors, "bg");
+ctx1.fillStyle = "#e8e4df";
 ctx1.fillRect(0, 0, canvas_w, canvas_h);
-ctx1.strokeStyle = squint_core.get(colors, "grid");
-ctx1.lineWidth = 0.5;
-for (let G__12 of squint_core.iterable(squint_core.range(0, canvas_w, cell_size))) {
-const x13 = G__12;
-ctx1.beginPath();
-ctx1.moveTo(x13, 0);
-ctx1.lineTo(x13, canvas_h);
-ctx1.stroke()
-};
-for (let G__14 of squint_core.iterable(squint_core.range(0, canvas_h, cell_size))) {
-const y15 = G__14;
-ctx1.beginPath();
-ctx1.moveTo(0, y15);
-ctx1.lineTo(canvas_w, y15);
-ctx1.stroke()
-};
-draw_booth(ctx1, ((canvas_w / 2) - 40), 5, 80, 22, booth_closed11);
-ctx1.strokeStyle = "#8b7355";
+ctx1.strokeStyle = "#bbb5aa";
 ctx1.lineWidth = 1;
-ctx1.setLineDash([4, 4]);
-for (let G__16 of squint_core.iterable([60, 140, 260, 340])) {
-const rx17 = G__16;
+for (let G__2 of squint_core.iterable(squint_core.range((num_lanes + 1)))) {
+const i3 = G__2;
+const x4 = (i3 * lane_w);
 ctx1.beginPath();
-ctx1.moveTo(rx17, 30);
-ctx1.lineTo(rx17, (canvas_h - 20));
+ctx1.moveTo(x4, queue_top);
+ctx1.lineTo(x4, queue_bottom);
 ctx1.stroke()
 };
-ctx1.setLineDash([]);
-const fx18 = squint_core.first(food3);
-const fy19 = squint_core.second(food3);
-const cx20 = ((fx18 * cell_size) + (cell_size / 2));
-const cy21 = ((fy19 * cell_size) + (cell_size / 2));
-ctx1.fillStyle = squint_core.get(colors, "passport-glow");
+ctx1.strokeStyle = "#27ae60";
+ctx1.lineWidth = 2;
+const ex5 = (num_lanes * lane_w);
 ctx1.beginPath();
-ctx1.arc(cx20, cy21, (cell_size * 0.8), 0, (2 * Math.PI));
-ctx1.fill();
-draw_passport(ctx1, cx20, cy21, cell_size);
-for (let G__22 of squint_core.iterable(us_citizens10)) {
-const c23 = G__22;
-const cx24 = ((squint_core.get(c23, "x") * cell_size) + (cell_size / 2));
-const cy25 = ((squint_core.get(c23, "y") * cell_size) + (cell_size / 2));
-draw_person(ctx1, cx24, cy25, cell_size, squint_core.get(colors, "us-citizen"));
-ctx1.fillStyle = "#27ae60";
-ctx1.font = "8px sans-serif";
-ctx1.textAlign = "center";
-ctx1.fillText("US", cx24, (cy25 - (cell_size * 0.5)))
-};
-for (let G__26 of squint_core.iterable(squint_core.map_indexed(squint_core.vector, snake2))) {
-const vec__2730 = G__26;
-const i31 = squint_core.nth(vec__2730, 0, null);
-const seg32 = squint_core.nth(vec__2730, 1, null);
-const sx33 = squint_core.first(seg32);
-const sy34 = squint_core.second(seg32);
-const cx35 = ((sx33 * cell_size) + (cell_size / 2));
-const cy36 = ((sy34 * cell_size) + (cell_size / 2));
-const color37 = (((i31 === 0)) ? (squint_core.get(colors, "queue-head")) : (squint_core.get(colors, "queue-body")));
-draw_person(ctx1, cx35, cy36, cell_size, color37);
-if ((squint_core.mod(i31, 3) === 0)) {
+ctx1.moveTo(ex5, queue_top);
+ctx1.lineTo(ex5, queue_bottom);
+ctx1.stroke();
 ctx1.fillStyle = "#8b7355";
-draw_rounded(ctx1, ((sx33 * cell_size) + 2), ((sy34 * cell_size) + 14), 6, 5, 1)}
+for (let G__6 of squint_core.iterable(squint_core.range((num_lanes + 1)))) {
+const i7 = G__6;
+for (let G__8 of squint_core.iterable(squint_core.range(queue_top, queue_bottom, 40))) {
+const yy9 = G__8;
+const x10 = (i7 * lane_w);
+ctx1.beginPath();
+ctx1.arc(x10, yy9, 2.5, 0, (2 * Math.PI));
+ctx1.fill()
+}
 };
-if (squint_core.truth_(commentary9)) {
-ctx1.fillStyle = "rgba(44,62,80,0.85)";
-draw_rounded(ctx1, 5, (canvas_h - 28), (canvas_w - 10), 24, 4);
-ctx1.fillStyle = "#ecf0f1";
-ctx1.font = "11px 'Courier New',monospace";
+ctx1.fillStyle = "#7f8c8d";
+ctx1.font = "9px monospace";
 ctx1.textAlign = "center";
-ctx1.fillText(commentary9, (canvas_w / 2), (canvas_h - 12))};
-if (squint_core.truth_(over7)) {
-ctx1.fillStyle = squint_core.get(colors, "overlay");
-ctx1.fillRect(0, 0, canvas_w, canvas_h);
-ctx1.fillStyle = "#e74c3c";
-ctx1.font = "bold 22px 'Courier New',monospace";
+for (let G__11 of squint_core.iterable(squint_core.range(num_lanes))) {
+const i12 = G__11;
+ctx1.fillText(`${"LANE "}${(i12 + 1)??''}`, lane_x(i12), (queue_top - 5))
+};
+ctx1.fillStyle = "#27ae60";
+ctx1.fillText("EXPRESS", express_lane_x(), (queue_top - 5));
+ctx1.fillStyle = "#27ae60";
+ctx1.font = "7px monospace";
+ctx1.fillText("US/GLOBAL ENTRY", express_lane_x(), (queue_top - 15));
+for (let G__13 of squint_core.iterable(squint_core.get(st, "booths"))) {
+const b14 = G__13;
+const x15 = (lane_x(squint_core.get(b14, "lane")) - 22);
+const open16 = squint_core.get(b14, "open");
+ctx1.fillStyle = ((squint_core.truth_(open16)) ? ("#5d4e37") : ("#c0392b"));
+ctx1.fillRect(x15, 10, 44, 35);
+ctx1.fillStyle = "#fff";
+ctx1.font = "bold 8px monospace";
 ctx1.textAlign = "center";
-ctx1.fillText("FLIGHT DEPARTED", (canvas_w / 2), ((canvas_h / 2) - 50));
+ctx1.fillText(((squint_core.truth_(open16)) ? ("CBP") : ("CLOSED")), (x15 + 22), 25);
+if (squint_core.truth_(open16)) {
+ctx1.font = "7px monospace";
+ctx1.fillText("OFFICER", (x15 + 22), 38)}
+};
+const ex17 = (express_lane_x() - 22);
+ctx1.fillStyle = "#27ae60";
+ctx1.fillRect(ex17, 10, 44, 35);
+ctx1.fillStyle = "#fff";
+ctx1.font = "bold 8px monospace";
+ctx1.textAlign = "center";
+ctx1.fillText("FAST", (ex17 + 22), 25);
+ctx1.font = "7px monospace";
+ctx1.fillText("TRACK", (ex17 + 22), 38);
+for (let G__18 of squint_core.iterable(squint_core.get(st, "lane-events"))) {
+const ev19 = G__18;
+if ((squint_core.get(ev19, "timer") > 0)) {
+const x20 = lane_x(squint_core.get(ev19, "lane"));
+const label21 = (((squint_core.get(ev19, "type") === "break")) ? ("BREAK") : ("JAMMED"));
+ctx1.fillStyle = "rgba(192,57,43,0.15)";
+ctx1.fillRect((x20 - (lane_w / 2)), queue_top, lane_w, queue_length);
+ctx1.fillStyle = "#c0392b";
+ctx1.font = "bold 9px monospace";
+ctx1.textAlign = "center";
+ctx1.fillText(label21, x20, (queue_top + (queue_length / 2)))}
+};
+for (let G__22 of squint_core.iterable(squint_core.get(st, "lane-people"))) {
+const p23 = G__22;
+if (squint_core.truth_(((squint_core.get(p23, "y") > queue_top) && (squint_core.get(p23, "y") < queue_bottom)))) {
+draw_person(ctx1, lane_x(squint_core.get(p23, "lane")), squint_core.get(p23, "y"), 12, "#95a5a6");
+if ((Math.random() < 0.05)) {
+draw_suitcase(ctx1, (lane_x(squint_core.get(p23, "lane")) + 8), squint_core.get(p23, "y"))}}
+};
+for (let G__24 of squint_core.iterable(squint_core.get(st, "us-citizens"))) {
+const c25 = G__24;
+draw_person(ctx1, express_lane_x(), squint_core.get(c25, "y"), 13, "#27ae60");
+ctx1.fillStyle = "#27ae60";
+ctx1.font = "7px sans-serif";
+ctx1.textAlign = "center"
+};
+const px26 = lane_x(squint_core.get(st, "player-lane"));
+const py27 = squint_core.get(st, "player-y");
+ctx1.fillStyle = "rgba(41,128,185,0.15)";
+ctx1.beginPath();
+ctx1.arc(px26, py27, 14, 0, (2 * Math.PI));
+ctx1.fill();
+draw_person(ctx1, px26, py27, 16, "#2c5f8a");
+ctx1.fillStyle = "#2c5f8a";
+ctx1.font = "bold 8px monospace";
+ctx1.textAlign = "center";
+ctx1.fillText("YOU", px26, (py27 - 14));
+const progress28 = ((queue_bottom - squint_core.get(st, "player-y")) / queue_length);
+const bar_h29 = 200;
+const bar_x30 = (canvas_w - 15);
+const bar_y31 = (queue_top + 50);
+ctx1.fillStyle = "#ccc7be";
+ctx1.fillRect(bar_x30, bar_y31, 8, bar_h29);
+ctx1.fillStyle = "#2c5f8a";
+ctx1.fillRect(bar_x30, (bar_y31 + (bar_h29 - (progress28 * bar_h29))), 8, (progress28 * bar_h29));
+ctx1.fillStyle = "#7f8c8d";
+ctx1.font = "7px monospace";
+ctx1.textAlign = "center";
+ctx1.save();
+ctx1.translate((canvas_w - 6), (bar_y31 + (bar_h29 / 2)));
+ctx1.rotate((Math.PI / 2));
+ctx1.restore();
+const frust32 = squint_core.get(st, "frustration");
+const bar_w33 = (canvas_w - 40);
+const bar_x34 = 20;
+const bar_y35 = (canvas_h - 22);
+ctx1.fillStyle = "#d4cfc8";
+ctx1.fillRect(bar_x34, bar_y35, bar_w33, 10);
+ctx1.fillStyle = (((frust32 < 40)) ? ("#f39c12") : ((((frust32 < 70)) ? ("#e67e22") : ((("else") ? ("#c0392b") : (null))))));
+ctx1.fillRect(bar_x34, bar_y35, (bar_w33 * (frust32 / 100)), 10);
+ctx1.fillStyle = "#2c3e50";
+ctx1.font = "8px monospace";
+ctx1.textAlign = "left";
+ctx1.fillText("PATIENCE", (bar_x34 + 2), (bar_y35 - 3));
+if (squint_core.truth_(squint_core.get(st, "commentary"))) {
+ctx1.fillStyle = "rgba(44,62,80,0.9)";
+ctx1.fillRect(5, (canvas_h - 48), (canvas_w - 10), 22);
 ctx1.fillStyle = "#ecf0f1";
-ctx1.font = "14px 'Courier New',monospace";
-ctx1.fillText(`${"People in queue: "}${score4??''}`, (canvas_w / 2), ((canvas_h / 2) - 20));
-ctx1.fillText(`${"Minutes wasted: "}${minutes6??''}`, (canvas_w / 2), ((canvas_h / 2) + 5));
-ctx1.fillText(`${"Record queue: "}${hi5??''}`, (canvas_w / 2), ((canvas_h / 2) + 30));
-if (squint_core.truth_(commentary9)) {
-ctx1.fillStyle = "#f39c12";
-ctx1.font = "italic 11px 'Courier New',monospace";
-ctx1.fillText(commentary9, (canvas_w / 2), ((canvas_h / 2) + 58))};
-ctx1.fillStyle = "#bdc3c7";
-ctx1.font = "12px 'Courier New',monospace";
-ctx1.fillText("Tap or Space to suffer again", (canvas_w / 2), ((canvas_h / 2) + 85))};
-if (squint_core.truth_((() => {
-const and__23554__auto__38 = paused8;
-if (squint_core.truth_(and__23554__auto__38)) {
-return squint_core.not(over7)} else {
-return and__23554__auto__38};
-
-})())) {
-ctx1.fillStyle = squint_core.get(colors, "overlay");
+ctx1.font = "10px 'Courier New',monospace";
+ctx1.textAlign = "center";
+ctx1.fillText(squint_core.get(st, "commentary"), (canvas_w / 2), (canvas_h - 33))};
+if (squint_core.truth_(squint_core.get(st, "over"))) {
+ctx1.fillStyle = "rgba(0,0,0,0.7)";
 ctx1.fillRect(0, 0, canvas_w, canvas_h);
-ctx1.fillStyle = "#ecf0f1";
+const rage36 = (squint_core.get(st, "frustration") >= 100);
+ctx1.fillStyle = ((rage36) ? ("#e74c3c") : ("#27ae60"));
 ctx1.font = "bold 20px 'Courier New',monospace";
 ctx1.textAlign = "center";
+ctx1.fillText(((rage36) ? ("YOU SNAPPED") : ("YOU MADE IT?!")), (canvas_w / 2), ((canvas_h / 2) - 60));
+ctx1.fillStyle = "#ecf0f1";
+ctx1.font = "13px 'Courier New',monospace";
+ctx1.fillText(`${"Time wasted: "}${squint_core.get(st, "score")??''}${" min"}`, (canvas_w / 2), ((canvas_h / 2) - 30));
+ctx1.fillText(`${"Times redirected: "}${squint_core.get(st, "redirects")??''}`, (canvas_w / 2), ((canvas_h / 2) - 10));
+ctx1.fillText(`${"Times almost there: "}${squint_core.get(st, "times-near-front")??''}`, (canvas_w / 2), ((canvas_h / 2) + 10));
+if (squint_core.truth_(squint_core.get(st, "commentary"))) {
+ctx1.fillStyle = "#f39c12";
+ctx1.font = "italic 10px 'Courier New',monospace";
+ctx1.fillText(squint_core.get(st, "commentary"), (canvas_w / 2), ((canvas_h / 2) + 40))};
+ctx1.fillStyle = "#bdc3c7";
+ctx1.font = "11px 'Courier New',monospace";
+ctx1.fillText("Tap or Space to try again", (canvas_w / 2), ((canvas_h / 2) + 70))};
+if (squint_core.truth_((() => {
+const and__23554__auto__37 = squint_core.get(st, "paused");
+if (squint_core.truth_(and__23554__auto__37)) {
+return squint_core.not(squint_core.get(st, "over"))} else {
+return and__23554__auto__37};
+
+})())) {
+ctx1.fillStyle = "rgba(0,0,0,0.5)";
+ctx1.fillRect(0, 0, canvas_w, canvas_h);
+ctx1.fillStyle = "#ecf0f1";
+ctx1.font = "bold 18px 'Courier New',monospace";
+ctx1.textAlign = "center";
 ctx1.fillText("PAUSED", (canvas_w / 2), ((canvas_h / 2) - 10));
-ctx1.font = "12px 'Courier New',monospace";
-return ctx1.fillText("(as if the line wasn't paused already)", (canvas_w / 2), ((canvas_h / 2) + 15));
+ctx1.font = "11px 'Courier New',monospace";
+return ctx1.fillText("(the line is also paused. as always.)", (canvas_w / 2), ((canvas_h / 2) + 15));
 };
 
 };
 var update_display = function (st) {
 const se1 = document.getElementById("score");
-const he2 = document.getElementById("high-score");
-const me3 = document.getElementById("minutes");
+const re2 = document.getElementById("redirects");
+const fe3 = document.getElementById("frustration");
 if (squint_core.truth_(se1)) {
-se1.textContent = squint_core.get(st, "score")};
-if (squint_core.truth_(he2)) {
-he2.textContent = squint_core.get(st, "hi")};
-if (squint_core.truth_(me3)) {
-return me3.textContent = squint_core.get(st, "minutes");
+se1.textContent = `${squint_core.get(st, "score")??''}${" min"}`};
+if (squint_core.truth_(re2)) {
+re2.textContent = squint_core.get(st, "redirects")};
+if (squint_core.truth_(fe3)) {
+return fe3.textContent = `${Math.floor(squint_core.get(st, "frustration"))??''}${"%"}`;
 };
 
 };
 var game_tick = function () {
-if (squint_core.truth_(squint_core.get(squint_core.deref(state), "paused"))) {
-} else {
-squint_core.swap_BANG_(state, move_snake)};
+squint_core.swap_BANG_(state, move_forward);
 render(squint_core.deref(state));
 return update_display(squint_core.deref(state));
 
@@ -344,77 +419,55 @@ const temp__23184__auto__1 = squint_core.get(squint_core.deref(state), "tid");
 if (squint_core.truth_(temp__23184__auto__1)) {
 const id2 = temp__23184__auto__1;
 clearInterval(id2)};
-return squint_core.swap_BANG_(state, squint_core.assoc, "tid", setInterval(game_tick, squint_core.get(squint_core.deref(state), "tick-ms")));
+return squint_core.swap_BANG_(state, squint_core.assoc, "tid", setInterval(game_tick, tick_ms));
 
 };
-var opposite_QMARK_ = function (a, b) {
-return (squint_core._EQ_(squint_core.first(a), (-squint_core.first(b))) && squint_core._EQ_(squint_core.second(a), (-squint_core.second(b))));
+var switch_lane = function (dir) {
+if (squint_core.truth_((() => {
+const or__23522__auto__1 = squint_core.get(squint_core.deref(state), "over");
+if (squint_core.truth_(or__23522__auto__1)) {
+return or__23522__auto__1} else {
+return squint_core.get(squint_core.deref(state), "paused")};
 
-};
-var set_dir = function (dir) {
-if (squint_core.truth_(opposite_QMARK_(dir, squint_core.get(squint_core.deref(state), "dir")))) {
+})())) {
 return null} else {
-return squint_core.swap_BANG_(state, squint_core.assoc, "next-dir", dir);
+const current2 = squint_core.get(squint_core.deref(state), "player-lane");
+const target3 = (current2 + dir);
+if (squint_core.truth_(((target3 >= 0) && (target3 < num_lanes)))) {
+return squint_core.swap_BANG_(state, squint_core.assoc, "player-lane", target3);
+};
 };
 
 };
 var handle_key = function (e) {
 const k1 = e.key;
 if (squint_core.truth_((() => {
-const or__23522__auto__2 = (k1 === "ArrowUp");
+const or__23522__auto__2 = (k1 === "ArrowLeft");
 if (or__23522__auto__2) {
 return or__23522__auto__2} else {
-const or__23522__auto__3 = (k1 === "w");
+const or__23522__auto__3 = (k1 === "a");
 if (or__23522__auto__3) {
 return or__23522__auto__3} else {
-return (k1 === "W")};
-};
-
-})())) {
-e.preventDefault();
-return set_dir([0, -1]);
-} else {
-if (squint_core.truth_((() => {
-const or__23522__auto__4 = (k1 === "ArrowDown");
-if (or__23522__auto__4) {
-return or__23522__auto__4} else {
-const or__23522__auto__5 = (k1 === "s");
-if (or__23522__auto__5) {
-return or__23522__auto__5} else {
-return (k1 === "S")};
-};
-
-})())) {
-e.preventDefault();
-return set_dir([0, 1]);
-} else {
-if (squint_core.truth_((() => {
-const or__23522__auto__6 = (k1 === "ArrowLeft");
-if (or__23522__auto__6) {
-return or__23522__auto__6} else {
-const or__23522__auto__7 = (k1 === "a");
-if (or__23522__auto__7) {
-return or__23522__auto__7} else {
 return (k1 === "A")};
 };
 
 })())) {
 e.preventDefault();
-return set_dir([-1, 0]);
+return switch_lane(-1);
 } else {
 if (squint_core.truth_((() => {
-const or__23522__auto__8 = (k1 === "ArrowRight");
-if (or__23522__auto__8) {
-return or__23522__auto__8} else {
-const or__23522__auto__9 = (k1 === "d");
-if (or__23522__auto__9) {
-return or__23522__auto__9} else {
+const or__23522__auto__4 = (k1 === "ArrowRight");
+if (or__23522__auto__4) {
+return or__23522__auto__4} else {
+const or__23522__auto__5 = (k1 === "d");
+if (or__23522__auto__5) {
+return or__23522__auto__5} else {
 return (k1 === "D")};
 };
 
 })())) {
 e.preventDefault();
-return set_dir([1, 0]);
+return switch_lane(1);
 } else {
 if ((k1 === " ")) {
 e.preventDefault();
@@ -424,7 +477,7 @@ return start_loop();
 } else {
 return squint_core.swap_BANG_(state, squint_core.update, "paused", squint_core.not)};
 } else {
-return null}}}}};
+return null}}};
 
 };
 var handle_ts = function (e) {
@@ -443,19 +496,18 @@ const dx4 = (t3.clientX - squint_core.get(ts2, "x"));
 const dy5 = (t3.clientY - squint_core.get(ts2, "y"));
 const ax6 = Math.abs(dx4);
 const ay7 = Math.abs(dy5);
-if (squint_core.truth_(((ax6 < 30) && (ay7 < 30)))) {
+if (squint_core.truth_(((ax6 < 20) && (ay7 < 20)))) {
 if (squint_core.truth_(squint_core.get(squint_core.deref(state), "over"))) {
 squint_core.swap_BANG_(state, reset_game);
 start_loop()} else {
 squint_core.swap_BANG_(state, squint_core.update, "paused", squint_core.not)}} else {
 if ((ax6 > ay7)) {
-set_dir([(((dx4 > 0)) ? (1) : (-1)), 0])} else {
-set_dir([0, (((dy5 > 0)) ? (1) : (-1))])}}};
+switch_lane((((dx4 > 0)) ? (1) : (-1)))}}};
 return squint_core.reset_BANG_(touch_st, null);
 
 };
 var setup_dpad = function () {
-for (let G__1 of squint_core.iterable([["btn-up", [0, -1]], ["btn-down", [0, 1]], ["btn-left", [-1, 0]], ["btn-right", [1, 0]]])) {
+for (let G__1 of squint_core.iterable([["btn-left", -1], ["btn-right", 1]])) {
 const vec__25 = G__1;
 const id6 = squint_core.nth(vec__25, 0, null);
 const dir7 = squint_core.nth(vec__25, 1, null);
@@ -464,12 +516,12 @@ if (squint_core.truth_(temp__23184__auto__8)) {
 const btn9 = temp__23184__auto__8;
 btn9.addEventListener("touchstart", (function (e) {
 e.preventDefault();
-return set_dir(dir7);
+return switch_lane(dir7);
 
 }), ({"passive": false}));
 btn9.addEventListener("mousedown", (function (e) {
 e.preventDefault();
-return set_dir(dir7);
+return switch_lane(dir7);
 
 }))}
 }
@@ -506,4 +558,4 @@ if ((document.readyState === "loading")) {
 document.addEventListener("DOMContentLoaded", init)} else {
 init()};
 
-export { canvas_h, reset_game, rand_pos, touch_st, commentary, start_loop, grid_w, move_us_citizens, place_food, draw_passport, game_tick, wrap, move_snake, opposite_QMARK_, draw_booth, get_canvas, handle_key, cell_size, draw_person, min_tick, get_ctx, draw_rounded, rand_commentary, render, setup_dpad, state, init, grid_h, spawn_us_citizen, handle_te, update_display, canvas_w, initial_tick, resize, colors, handle_ts, vec_EQ_, set_dir }
+export { canvas_h, rand_redirect_line, move_forward, reset_game, rand_between, touch_st, draw_suitcase, lane_w, commentary, start_loop, init_lane_people, num_lanes, queue_length, express_lane_x, tick_ms, game_tick, base_speed, player_size, lane_x, get_canvas, handle_key, switch_lane, draw_person, get_ctx, queue_bottom, rand_commentary, render, init_booths, setup_dpad, state, redirect_lines, init, handle_te, update_display, canvas_w, resize, handle_ts, queue_top }
