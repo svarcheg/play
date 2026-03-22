@@ -305,234 +305,682 @@
 (defn get-canvas [] (js/document.getElementById "game-canvas"))
 (defn get-ctx [] (.getContext (get-canvas) "2d"))
 
+;; --- Drawing helpers ---
 (defn draw-person [ctx x y size color acc]
   (.save ctx)
-  (let [head-r (* size 0.22)
-        head-y (- y (* size 0.35))
+  (let [head-r (* size 0.25)
+        head-y (- y (* size 0.38))
         a (or acc 0)]
-    ;; head
+    ;; shadow
+    (set! (.-fillStyle ctx) "rgba(0,0,0,0.08)")
+    (.beginPath ctx)
+    (.ellipse ctx x (+ y (* size 0.45)) (* size 0.25) (* size 0.08) 0 0 (* 2 js/Math.PI))
+    (.fill ctx)
+    ;; legs
+    (set! (.-strokeStyle ctx) (if (= color "#2c5f8a") "#1a3d5c" "#555"))
+    (set! (.-lineWidth ctx) (* size 0.12))
+    (set! (.-lineCap ctx) "round")
+    (.beginPath ctx)
+    (.moveTo ctx x (+ y (* size 0.12)))
+    (.lineTo ctx (- x (* size 0.13)) (+ y (* size 0.4)))
+    (.stroke ctx)
+    (.beginPath ctx)
+    (.moveTo ctx x (+ y (* size 0.12)))
+    (.lineTo ctx (+ x (* size 0.13)) (+ y (* size 0.4)))
+    (.stroke ctx)
+    ;; body (torso)
     (set! (.-fillStyle ctx) color)
+    (.beginPath ctx)
+    (.moveTo ctx (- x (* size 0.2)) (- y (* size 0.15)))
+    (.lineTo ctx (+ x (* size 0.2)) (- y (* size 0.15)))
+    (.quadraticCurveTo ctx (+ x (* size 0.22)) (+ y (* size 0.15))
+                           x (+ y (* size 0.18)))
+    (.quadraticCurveTo ctx (- x (* size 0.22)) (+ y (* size 0.15))
+                           (- x (* size 0.2)) (- y (* size 0.15)))
+    (.fill ctx)
+    ;; arms
+    (set! (.-strokeStyle ctx) color)
+    (set! (.-lineWidth ctx) (* size 0.1))
+    (.beginPath ctx)
+    (.moveTo ctx (- x (* size 0.2)) (- y (* size 0.08)))
+    (.lineTo ctx (- x (* size 0.32)) (+ y (* size 0.08)))
+    (.stroke ctx)
+    (.beginPath ctx)
+    (.moveTo ctx (+ x (* size 0.2)) (- y (* size 0.08)))
+    (.lineTo ctx (+ x (* size 0.32)) (+ y (* size 0.08)))
+    (.stroke ctx)
+    ;; neck
+    (set! (.-strokeStyle ctx) "#dbb896")
+    (set! (.-lineWidth ctx) (* size 0.1))
+    (.beginPath ctx)
+    (.moveTo ctx x (- y (* size 0.15)))
+    (.lineTo ctx x (- y (* size 0.25)))
+    (.stroke ctx)
+    ;; head
+    (set! (.-fillStyle ctx) "#dbb896")
     (.beginPath ctx)
     (.arc ctx x head-y head-r 0 (* 2 js/Math.PI))
     (.fill ctx)
-    ;; body
-    (set! (.-strokeStyle ctx) color)
-    (set! (.-lineWidth ctx) (* size 0.13))
-    (set! (.-lineCap ctx) "round")
+    ;; hair
+    (set! (.-fillStyle ctx) (cond (< a 2) "#3d2b1f" (= a 2) "#8b6914" :else "#1a1a2e"))
     (.beginPath ctx)
-    (.moveTo ctx x (- y (* size 0.12)))
-    (.lineTo ctx x (+ y (* size 0.15)))
-    (.stroke ctx)
-    ;; arms
+    (.arc ctx x (- head-y (* head-r 0.15)) head-r (* js/Math.PI 1.0) (* js/Math.PI 2.0))
+    (.fill ctx)
+    ;; eyes
+    (set! (.-fillStyle ctx) "#222")
     (.beginPath ctx)
-    (.moveTo ctx (- x (* size 0.22)) (- y (* size 0.02)))
-    (.lineTo ctx (+ x (* size 0.22)) (- y (* size 0.02)))
-    (.stroke ctx)
-    ;; legs
+    (.arc ctx (- x (* head-r 0.4)) (+ head-y (* head-r 0.1)) (* head-r 0.12) 0 (* 2 js/Math.PI))
+    (.fill ctx)
     (.beginPath ctx)
-    (.moveTo ctx x (+ y (* size 0.15)))
-    (.lineTo ctx (- x (* size 0.15)) (+ y (* size 0.4)))
-    (.stroke ctx)
-    (.beginPath ctx)
-    (.moveTo ctx x (+ y (* size 0.15)))
-    (.lineTo ctx (+ x (* size 0.15)) (+ y (* size 0.4)))
-    (.stroke ctx)
+    (.arc ctx (+ x (* head-r 0.4)) (+ head-y (* head-r 0.1)) (* head-r 0.12) 0 (* 2 js/Math.PI))
+    (.fill ctx)
     ;; accessory (stored on person, stable)
     (cond
+      ;; hat
       (= a 1)
       (do (set! (.-fillStyle ctx) "#2c3e50")
-          (.fillRect ctx (- x (* head-r 1.2)) (- head-y head-r) (* head-r 2.4) (* head-r 0.5)))
+          (.fillRect ctx (- x (* head-r 1.4)) (- head-y (* head-r 1.1)) (* head-r 2.8) (* head-r 0.4))
+          (.fillRect ctx (- x (* head-r 0.8)) (- head-y (* head-r 1.5)) (* head-r 1.6) (* head-r 0.6)))
+      ;; rolling suitcase
       (= a 2)
-      (do (set! (.-fillStyle ctx) "#8b7355")
-          (.fillRect ctx (+ x (* size 0.2)) (+ y (* size 0.05)) 6 5))
+      (let [sx (+ x (* size 0.3)) sy (+ y (* size 0.05))]
+        (set! (.-fillStyle ctx) "#4a6fa5")
+        (.fillRect ctx sx (- sy 2) 7 8)
+        (set! (.-strokeStyle ctx) "#3a5a85")
+        (set! (.-lineWidth ctx) 0.8)
+        (.strokeRect ctx sx (- sy 2) 7 8)
+        ;; handle
+        (set! (.-strokeStyle ctx) "#666")
+        (set! (.-lineWidth ctx) 1)
+        (.beginPath ctx)
+        (.moveTo ctx (+ sx 3.5) (- sy 2))
+        (.lineTo ctx (+ sx 3.5) (- sy 9))
+        (.stroke ctx)
+        ;; wheels
+        (set! (.-fillStyle ctx) "#333")
+        (.beginPath ctx)
+        (.arc ctx (+ sx 1.5) (+ sy 6.5) 1.2 0 (* 2 js/Math.PI))
+        (.fill ctx)
+        (.beginPath ctx)
+        (.arc ctx (+ sx 5.5) (+ sy 6.5) 1.2 0 (* 2 js/Math.PI))
+        (.fill ctx))
+      ;; backpack
       (= a 3)
       (do (set! (.-fillStyle ctx) "#c0392b")
-          (.fillRect ctx (+ x (* size 0.08)) (- y (* size 0.1)) (* size 0.18) (* size 0.22)))))
+          (let [bx (+ x (* size 0.06)) by (- y (* size 0.12))
+                bw (* size 0.22) bh (* size 0.28)]
+            (.beginPath ctx)
+            (.moveTo ctx bx (+ by (* bh 0.15)))
+            (.quadraticCurveTo ctx bx by (+ bx (* bw 0.3)) by)
+            (.lineTo ctx (+ bx (* bw 0.7)) by)
+            (.quadraticCurveTo ctx (+ bx bw) by (+ bx bw) (+ by (* bh 0.15)))
+            (.lineTo ctx (+ bx bw) (+ by bh))
+            (.lineTo ctx bx (+ by bh))
+            (.closePath ctx)
+            (.fill ctx)
+            ;; pocket
+            (set! (.-fillStyle ctx) "#a93226")
+            (.fillRect ctx (+ bx 2) (+ by (* bh 0.5)) (- bw 4) (* bh 0.3))))
+      ;; phone in hand
+      (= a 4)
+      (do (set! (.-fillStyle ctx) "#222")
+          (.fillRect ctx (- x (* size 0.38)) (- y (* size 0.02)) 4 6)
+          (set! (.-fillStyle ctx) "#55aaff")
+          (.fillRect ctx (- x (* size 0.37)) (- y (* size 0.01)) 2.5 4))))
   (.restore ctx))
+
+;; Draw a floor tile pattern
+(defn draw-floor [ctx]
+  (let [tile-size 20]
+    (doseq [tx (range 0 canvas-w tile-size)]
+      (doseq [ty (range queue-top queue-bottom tile-size)]
+        (set! (.-fillStyle ctx)
+              (if (even? (+ (quot tx tile-size) (quot ty tile-size)))
+                "#e8e4df" "#ddd8d2"))
+        (.fillRect ctx tx ty tile-size tile-size)))))
+
+;; Draw rope barriers between stanchions
+(defn draw-ropes [ctx]
+  (doseq [i (range (inc num-lanes))]
+    (let [x (* i lane-w)]
+      ;; rope line
+      (set! (.-strokeStyle ctx) "#c9a96e")
+      (set! (.-lineWidth ctx) 1.5)
+      (.setLineDash ctx #js [4 3])
+      (.beginPath ctx)
+      (.moveTo ctx x queue-top)
+      (.lineTo ctx x queue-bottom)
+      (.stroke ctx)
+      (.setLineDash ctx #js [])
+      ;; stanchion posts
+      (set! (.-fillStyle ctx) "#b8963e")
+      (doseq [yy (range queue-top queue-bottom 40)]
+        ;; post base
+        (.beginPath ctx)
+        (.arc ctx x (+ yy 2) 3.5 0 (* 2 js/Math.PI))
+        (.fill ctx)
+        ;; post top (gold ball)
+        (set! (.-fillStyle ctx) "#d4af37")
+        (.beginPath ctx)
+        (.arc ctx x yy 2.5 0 (* 2 js/Math.PI))
+        (.fill ctx)
+        (set! (.-fillStyle ctx) "#b8963e")))))
+
+;; Draw a detailed CBP booth
+(defn draw-booth [ctx x open lane-num]
+  (.save ctx)
+  ;; booth background
+  (set! (.-fillStyle ctx) (if open "#3d3225" "#4a1a1a"))
+  (.fillRect ctx (- x 25) 4 50 48)
+  ;; booth desk surface
+  (set! (.-fillStyle ctx) (if open "#5d4e37" "#6b2020"))
+  (.fillRect ctx (- x 23) 42 46 10)
+  ;; glass partition
+  (set! (.-strokeStyle ctx) "rgba(180,220,255,0.4)")
+  (set! (.-lineWidth ctx) 1.5)
+  (.beginPath ctx)
+  (.moveTo ctx (- x 20) 8)
+  (.lineTo ctx (- x 20) 40)
+  (.stroke ctx)
+  (.beginPath ctx)
+  (.moveTo ctx (+ x 20) 8)
+  (.lineTo ctx (+ x 20) 40)
+  (.stroke ctx)
+  ;; monitor
+  (when open
+    (set! (.-fillStyle ctx) "#111")
+    (.fillRect ctx (- x 8) 10 16 11)
+    (set! (.-fillStyle ctx) "#2ecc71")
+    (.fillRect ctx (- x 7) 11 14 9)
+    ;; monitor stand
+    (set! (.-fillStyle ctx) "#333")
+    (.fillRect ctx (- x 2) 21 4 3))
+  ;; CBP eagle emblem placeholder (small shield)
+  (set! (.-fillStyle ctx) (if open "#d4af37" "#666"))
+  (.beginPath ctx)
+  (.moveTo ctx x 26)
+  (.lineTo ctx (- x 6) 30)
+  (.lineTo ctx (- x 4) 37)
+  (.lineTo ctx x 40)
+  (.lineTo ctx (+ x 4) 37)
+  (.lineTo ctx (+ x 6) 30)
+  (.closePath ctx)
+  (.fill ctx)
+  ;; text
+  (set! (.-fillStyle ctx) "#fff")
+  (set! (.-font ctx) "bold 7px monospace")
+  (set! (.-textAlign ctx) "center")
+  (.fillText ctx (if open "CBP" "CLOSED") x 35)
+  ;; lane number on desk
+  (set! (.-fillStyle ctx) "#aaa")
+  (set! (.-font ctx) "6px monospace")
+  (.fillText ctx (str lane-num) x 50)
+  ;; status light
+  (set! (.-fillStyle ctx) (if open "#2ecc71" "#e74c3c"))
+  (.beginPath ctx)
+  (.arc ctx (+ x 18) 8 3 0 (* 2 js/Math.PI))
+  (.fill ctx)
+  ;; light glow
+  (set! (.-fillStyle ctx) (if open "rgba(46,204,113,0.2)" "rgba(231,76,60,0.2)"))
+  (.beginPath ctx)
+  (.arc ctx (+ x 18) 8 6 0 (* 2 js/Math.PI))
+  (.fill ctx)
+  (.restore ctx))
+
+;; Overhead fluorescent lights
+(defn draw-ceiling-lights [ctx ticks]
+  (doseq [lx (range 30 canvas-w 80)]
+    (let [flicker (if (and (zero? (mod (+ ticks lx) 400))
+                           (< (js/Math.random) 0.3))
+                    0.3 0.9)]
+      ;; light fixture
+      (set! (.-fillStyle ctx) "#ccc")
+      (.fillRect ctx (- lx 18) 0 36 3)
+      ;; light glow
+      (set! (.-fillStyle ctx) (str "rgba(255,255,230," flicker ")"))
+      (.fillRect ctx (- lx 16) 0 32 2)
+      ;; glow cone on floor
+      (set! (.-fillStyle ctx) (str "rgba(255,255,220," (* flicker 0.04) ")"))
+      (.beginPath ctx)
+      (.moveTo ctx (- lx 10) 3)
+      (.lineTo ctx (- lx 30) queue-top)
+      (.lineTo ctx (+ lx 30) queue-top)
+      (.lineTo ctx (+ lx 10) 3)
+      (.closePath ctx)
+      (.fill ctx))))
+
+;; Floor direction arrows
+(defn draw-floor-arrows [ctx]
+  (set! (.-fillStyle ctx) "rgba(0,0,0,0.06)")
+  (doseq [lane (range num-lanes)]
+    (let [x (lane-x lane)]
+      (doseq [ay (range (+ queue-top 80) queue-bottom 100)]
+        ;; up arrow
+        (.beginPath ctx)
+        (.moveTo ctx x (- ay 6))
+        (.lineTo ctx (- x 5) (+ ay 2))
+        (.lineTo ctx (- x 2) (+ ay 2))
+        (.lineTo ctx (- x 2) (+ ay 6))
+        (.lineTo ctx (+ x 2) (+ ay 6))
+        (.lineTo ctx (+ x 2) (+ ay 2))
+        (.lineTo ctx (+ x 5) (+ ay 2))
+        (.closePath ctx)
+        (.fill ctx)))))
+
+;; Security cameras
+(defn draw-cameras [ctx ticks]
+  (let [cam-positions [[15 4] [(- canvas-w 20) 4]]]
+    (doseq [[cx cy] cam-positions]
+      ;; mount
+      (set! (.-fillStyle ctx) "#444")
+      (.fillRect ctx (- cx 2) cy 4 8)
+      ;; camera body
+      (set! (.-fillStyle ctx) "#222")
+      (.beginPath ctx)
+      (.arc ctx cx (+ cy 10) 5 0 (* 2 js/Math.PI))
+      (.fill ctx)
+      ;; lens
+      (set! (.-fillStyle ctx) "#0af")
+      (.beginPath ctx)
+      (.arc ctx cx (+ cy 12) 2 0 (* 2 js/Math.PI))
+      (.fill ctx)
+      ;; recording indicator (blinks)
+      (when (< (mod ticks 60) 30)
+        (set! (.-fillStyle ctx) "#e74c3c")
+        (.beginPath ctx)
+        (.arc ctx (+ cx 3) (+ cy 7) 1.5 0 (* 2 js/Math.PI))
+        (.fill ctx)))))
+
+;; Flight info display board
+(defn draw-flight-board [ctx ticks]
+  (let [bx 60 by 0 bw 120 bh 55]
+    ;; frame
+    (set! (.-fillStyle ctx) "#1a1a2e")
+    (.fillRect ctx bx by bw bh)
+    (set! (.-strokeStyle ctx) "#333")
+    (set! (.-lineWidth ctx) 1)
+    (.strokeRect ctx bx by bw bh)
+    ;; header
+    (set! (.-fillStyle ctx) "#e74c3c")
+    (.fillRect ctx (+ bx 2) (+ by 2) (- bw 4) 10)
+    (set! (.-fillStyle ctx) "#fff")
+    (set! (.-font ctx) "bold 7px monospace")
+    (set! (.-textAlign ctx) "center")
+    (.fillText ctx "DEPARTURES" (+ bx (/ bw 2)) (+ by 10))
+    ;; flight rows
+    (let [flights [["AA 1247" "CHICAGO" "BOARDING"]
+                   ["DL 582"  "ATLANTA" "DELAYED"]
+                   ["UA 903"  "DENVER"  "ON TIME"]
+                   ["B6 211"  "BOSTON"   "FINAL CALL"]]]
+      (set! (.-font ctx) "5px monospace")
+      (set! (.-textAlign ctx) "left")
+      (doseq [[i [flight dest status]] (map-indexed vector flights)]
+        (let [ry (+ by 18 (* i 9))]
+          (set! (.-fillStyle ctx) "#0f0")
+          (.fillText ctx flight (+ bx 4) ry)
+          (set! (.-fillStyle ctx) "#0f0")
+          (.fillText ctx dest (+ bx 42) ry)
+          (set! (.-fillStyle ctx)
+                (cond (= status "DELAYED") "#f33"
+                      (= status "FINAL CALL") "#ff0"
+                      :else "#0f0"))
+          ;; flicker the "DELAYED" text
+          (when-not (and (= status "DELAYED") (< (mod ticks 40) 10))
+            (.fillText ctx status (+ bx 82) ry)))))))
+
+;; "WELCOME TO THE UNITED STATES" sign
+(defn draw-welcome-sign [ctx]
+  (let [sx 200 sy 0 sw 140 sh 55]
+    ;; background
+    (set! (.-fillStyle ctx) "#001a4d")
+    (.fillRect ctx sx sy sw sh)
+    (set! (.-strokeStyle ctx) "#d4af37")
+    (set! (.-lineWidth ctx) 1.5)
+    (.strokeRect ctx (+ sx 2) (+ sy 2) (- sw 4) (- sh 4))
+    ;; stars
+    (set! (.-fillStyle ctx) "#d4af37")
+    (doseq [i (range 5)]
+      (let [stx (+ sx 10 (* i 26))]
+        (.beginPath ctx)
+        (.arc ctx stx (+ sy 10) 2 0 (* 2 js/Math.PI))
+        (.fill ctx)))
+    ;; text
+    (set! (.-fillStyle ctx) "#fff")
+    (set! (.-font ctx) "bold 6px monospace")
+    (set! (.-textAlign ctx) "center")
+    (.fillText ctx "WELCOME TO THE" (+ sx (/ sw 2)) (+ sy 24))
+    (set! (.-font ctx) "bold 8px monospace")
+    (.fillText ctx "UNITED STATES" (+ sx (/ sw 2)) (+ sy 34))
+    (set! (.-font ctx) "5px monospace")
+    (set! (.-fillStyle ctx) "#aaa")
+    (.fillText ctx "U.S. Customs & Border Protection" (+ sx (/ sw 2)) (+ sy 46))))
 
 
 (defn render [st]
-  (let [ctx (get-ctx)]
-    ;; bg - terminal floor
+  (let [ctx (get-ctx)
+        ticks (:ticks st)]
+    ;; bg
     (set! (.-fillStyle ctx) "#e8e4df")
     (.fillRect ctx 0 0 canvas-w canvas-h)
 
-    ;; Lane dividers
-    (set! (.-strokeStyle ctx) "#bbb5aa")
-    (set! (.-lineWidth ctx) 1)
-    (doseq [i (range (inc num-lanes))]
-      (let [x (* i lane-w)]
-        (.beginPath ctx)
-        (.moveTo ctx x queue-top)
-        (.lineTo ctx x queue-bottom)
-        (.stroke ctx)))
-    ;; express lane divider (thicker)
+    ;; Checkered floor tiles
+    (draw-floor ctx)
+
+    ;; Floor direction arrows (subtle)
+    (draw-floor-arrows ctx)
+
+    ;; Rope barriers with stanchions
+    (draw-ropes ctx)
+
+    ;; Express lane divider (green rope)
     (set! (.-strokeStyle ctx) "#27ae60")
-    (set! (.-lineWidth ctx) 2)
+    (set! (.-lineWidth ctx) 2.5)
     (let [ex (* num-lanes lane-w)]
       (.beginPath ctx)
+      (.setLineDash ctx #js [6 3])
       (.moveTo ctx ex queue-top)
       (.lineTo ctx ex queue-bottom)
-      (.stroke ctx))
+      (.stroke ctx)
+      (.setLineDash ctx #js []))
+    ;; green stanchions
+    (set! (.-fillStyle ctx) "#27ae60")
+    (doseq [yy (range queue-top queue-bottom 40)]
+      (.beginPath ctx)
+      (.arc ctx (* num-lanes lane-w) yy 3 0 (* 2 js/Math.PI))
+      (.fill ctx))
 
-    ;; Rope stanchions (dots along lanes)
-    (set! (.-fillStyle ctx) "#8b7355")
-    (doseq [i (range (inc num-lanes))]
-      (doseq [yy (range queue-top queue-bottom 40)]
-        (let [x (* i lane-w)]
-          (.beginPath ctx)
-          (.arc ctx x yy 2.5 0 (* 2 js/Math.PI))
-          (.fill ctx))))
+    ;; Ceiling area (dark strip at top)
+    (set! (.-fillStyle ctx) "#2c2c2c")
+    (.fillRect ctx 0 0 canvas-w 56)
 
-    ;; Booths at top
-    (.save ctx)
-    (set! (.-textAlign ctx) "center")
+    ;; Ceiling lights
+    (draw-ceiling-lights ctx ticks)
+
+    ;; Flight info display
+    (draw-flight-board ctx ticks)
+
+    ;; Welcome sign
+    (draw-welcome-sign ctx)
+
+    ;; Security cameras
+    (draw-cameras ctx ticks)
+
+    ;; Booths (detailed)
     (doseq [b (:booths st)]
-      (let [x (- (lane-x (:lane b)) 22)
-            open (:open b)]
-        (set! (.-fillStyle ctx) (if open "#5d4e37" "#c0392b"))
-        (.fillRect ctx x 10 44 35)
-        (set! (.-fillStyle ctx) "#fff")
-        (set! (.-font ctx) "bold 8px monospace")
-        (.fillText ctx (if open "CBP" "CLOSED") (+ x 22) 25)
-        (when open
-          (set! (.-font ctx) "7px monospace")
-          (.fillText ctx "OFFICER" (+ x 22) 38))))
+      (draw-booth ctx (lane-x (:lane b)) (:open b) (inc (:lane b))))
 
-    ;; Express lane booth (always open, always fast)
-    (let [ex (- (express-lane-x) 22)]
-      (set! (.-fillStyle ctx) "#27ae60")
-      (.fillRect ctx ex 10 44 35)
+    ;; Express lane booth (always open)
+    (let [ex (express-lane-x)]
+      (.save ctx)
+      (set! (.-fillStyle ctx) "#0d4d2b")
+      (.fillRect ctx (- ex 25) 4 50 48)
+      (set! (.-fillStyle ctx) "#1a7a42")
+      (.fillRect ctx (- ex 23) 42 46 10)
+      ;; glass
+      (set! (.-strokeStyle ctx) "rgba(180,220,255,0.4)")
+      (set! (.-lineWidth ctx) 1.5)
+      (.beginPath ctx)
+      (.moveTo ctx (- ex 20) 8)
+      (.lineTo ctx (- ex 20) 40)
+      (.stroke ctx)
+      (.beginPath ctx)
+      (.moveTo ctx (+ ex 20) 8)
+      (.lineTo ctx (+ ex 20) 40)
+      (.stroke ctx)
+      ;; text
       (set! (.-fillStyle ctx) "#fff")
-      (set! (.-font ctx) "bold 8px monospace")
-      (.fillText ctx "FAST" (+ ex 22) 25)
-      (set! (.-font ctx) "7px monospace")
-      (.fillText ctx "TRACK" (+ ex 22) 38))
-    (.restore ctx)
+      (set! (.-font ctx) "bold 7px monospace")
+      (set! (.-textAlign ctx) "center")
+      (.fillText ctx "GLOBAL" ex 30)
+      (.fillText ctx "ENTRY" ex 39)
+      ;; green status light
+      (set! (.-fillStyle ctx) "#2ecc71")
+      (.beginPath ctx)
+      (.arc ctx (+ ex 18) 8 3 0 (* 2 js/Math.PI))
+      (.fill ctx)
+      (.restore ctx))
 
-    ;; Lane labels at top (drawn after booths so they're visible)
-    (set! (.-fillStyle ctx) "#7f8c8d")
-    (set! (.-font ctx) "9px monospace")
+    ;; Lane labels
     (set! (.-textAlign ctx) "center")
     (doseq [i (range num-lanes)]
-      (.fillText ctx (str "LANE " (inc i)) (lane-x i) (- queue-top 5)))
-    (set! (.-fillStyle ctx) "#27ae60")
-    (set! (.-font ctx) "bold 9px monospace")
-    (.fillText ctx "US/GLOBAL ENTRY" (express-lane-x) (- queue-top 5))
+      (set! (.-fillStyle ctx) "rgba(0,0,0,0.12)")
+      (set! (.-font ctx) "bold 9px monospace")
+      (.fillText ctx (str "LANE " (inc i)) (lane-x i) (+ queue-top 15)))
+    (set! (.-fillStyle ctx) "rgba(39,174,96,0.25)")
+    (set! (.-font ctx) "bold 8px monospace")
+    (.fillText ctx "US/GLOBAL" (express-lane-x) (+ queue-top 11))
+    (.fillText ctx "ENTRY" (express-lane-x) (+ queue-top 20))
 
-    ;; Lane events (blocked lanes)
+    ;; Lane events (blocked lanes - red overlay with caution stripes)
     (doseq [ev (:lane-events st)]
       (when (> (:timer ev) 0)
         (let [x (lane-x (:lane ev))
-              label (if (= (:type ev) "break") "BREAK" "JAMMED")]
-          (set! (.-fillStyle ctx) "rgba(192,57,43,0.15)")
-          (.fillRect ctx (- x (/ lane-w 2)) queue-top lane-w queue-length)
+              label (if (= (:type ev) "break") "BREAK" "JAMMED")
+              lx (- x (/ lane-w 2))]
+          ;; red overlay
+          (set! (.-fillStyle ctx) "rgba(192,57,43,0.12)")
+          (.fillRect ctx lx queue-top lane-w queue-length)
+          ;; caution stripes at top and bottom
+          (set! (.-fillStyle ctx) "rgba(241,196,15,0.5)")
+          (doseq [sx (range lx (+ lx lane-w) 8)]
+            (.save ctx)
+            (.beginPath ctx)
+            (.rect ctx lx queue-top lane-w 6)
+            (.clip ctx)
+            (.translate ctx sx queue-top)
+            (.rotate ctx 0.7)
+            (set! (.-fillStyle ctx) "rgba(241,196,15,0.6)")
+            (.fillRect ctx 0 0 3 12)
+            (.restore ctx))
+          ;; label
           (set! (.-fillStyle ctx) "#c0392b")
-          (set! (.-font ctx) "bold 9px monospace")
+          (set! (.-font ctx) "bold 10px monospace")
           (set! (.-textAlign ctx) "center")
-          (.fillText ctx label x (+ queue-top (/ queue-length 2))))))
+          (.fillText ctx label x (+ queue-top (/ queue-length 2)))
+          ;; blinking warning icon
+          (when (< (mod ticks 40) 25)
+            (set! (.-fillStyle ctx) "#e74c3c")
+            (set! (.-font ctx) "14px sans-serif")
+            (.fillText ctx "\u26A0" x (+ queue-top (/ queue-length 2) 18))))))
 
-    ;; Other people in queues (full range, varied look, staggered positions)
+    ;; Other people in queues
     (doseq [p (:lane-people st)]
       (when (and (> (:y p) (+ queue-top 20)) (< (:y p) (+ queue-bottom 10)))
         (let [xoff (or (:xoff p) 0)
               px (+ (lane-x (:lane p)) xoff)]
           (draw-person ctx px (:y p) (or (:size p) 11) (or (:color p) "#95a5a6") (:acc p)))))
 
-    ;; US citizens in express lane (staggered x)
+    ;; US citizens in express lane
     (doseq [c (:us-citizens st)]
       (when (and (> (:y c) (+ queue-top 10)) (< (:y c) queue-bottom))
         (let [xoff (* 6 (js/Math.sin (* (:y c) 0.3)))]
           (draw-person ctx (+ (express-lane-x) xoff) (:y c) 13 "#27ae60" 0))))
 
-    ;; Player (you!)
+    ;; Player (you!) with extra detail
     (let [px (lane-x (:player-lane st))
           py (:player-y st)]
-      ;; highlight
-      (set! (.-fillStyle ctx) "rgba(41,128,185,0.15)")
+      ;; pulsing highlight ring
+      (let [pulse (+ 14 (* 2 (js/Math.sin (* ticks 0.05))))]
+        (set! (.-strokeStyle ctx) "rgba(41,128,185,0.3)")
+        (set! (.-lineWidth ctx) 2)
+        (.beginPath ctx)
+        (.arc ctx px py pulse 0 (* 2 js/Math.PI))
+        (.stroke ctx))
+      ;; solid highlight
+      (set! (.-fillStyle ctx) "rgba(41,128,185,0.12)")
       (.beginPath ctx)
       (.arc ctx px py 14 0 (* 2 js/Math.PI))
       (.fill ctx)
-      ;; person
-      (draw-person ctx px py 16 "#2c5f8a" 0)
-      ;; "YOU" label
-      (set! (.-fillStyle ctx) "#2c5f8a")
+      ;; the player
+      (draw-person ctx px py 16 "#2c5f8a" 2)
+      ;; passport in left hand
+      (set! (.-fillStyle ctx) "#1a3a5c")
+      (.fillRect ctx (- px 12) (- py 1) 5 7)
+      (set! (.-fillStyle ctx) "#d4af37")
+      (set! (.-font ctx) "3px monospace")
+      (set! (.-textAlign ctx) "center")
+      (.fillText ctx "\u2302" (- px 9.5) (+ py 4))
+      ;; "YOU" arrow + label
+      (set! (.-fillStyle ctx) "#e74c3c")
+      (.beginPath ctx)
+      (.moveTo ctx px (- py 22))
+      (.lineTo ctx (- px 4) (- py 28))
+      (.lineTo ctx (+ px 4) (- py 28))
+      (.closePath ctx)
+      (.fill ctx)
+      ;; label bg
+      (set! (.-fillStyle ctx) "#e74c3c")
+      (let [tw 22 th 10 tx (- px (/ tw 2)) ty (- py 38)]
+        (.beginPath ctx)
+        (.moveTo ctx (+ tx 3) ty)
+        (.lineTo ctx (+ tx tw -3) ty)
+        (.quadraticCurveTo ctx (+ tx tw) ty (+ tx tw) (+ ty 3))
+        (.lineTo ctx (+ tx tw) (+ ty th -3))
+        (.quadraticCurveTo ctx (+ tx tw) (+ ty th) (+ tx tw -3) (+ ty th))
+        (.lineTo ctx (+ tx 3) (+ ty th))
+        (.quadraticCurveTo ctx tx (+ ty th) tx (+ ty th -3))
+        (.lineTo ctx tx (+ ty 3))
+        (.quadraticCurveTo ctx tx ty (+ tx 3) ty)
+        (.fill ctx))
+      (set! (.-fillStyle ctx) "#fff")
       (set! (.-font ctx) "bold 8px monospace")
       (set! (.-textAlign ctx) "center")
-      (.fillText ctx "YOU" px (- py 14)))
+      (.fillText ctx "YOU" px (- py 30)))
 
-    ;; Progress bar on right side
+    ;; Progress bar on right side (nicer)
     (let [progress (/ (- queue-bottom (:player-y st)) queue-length)
           bar-h 200
           bar-x (- canvas-w 15)
           bar-y (+ queue-top 50)]
+      ;; track
       (set! (.-fillStyle ctx) "#ccc7be")
-      (.fillRect ctx bar-x bar-y 8 bar-h)
-      (set! (.-fillStyle ctx) "#2c5f8a")
-      (.fillRect ctx bar-x (+ bar-y (- bar-h (* progress bar-h))) 8 (* progress bar-h)))
+      (.beginPath ctx)
+      (.moveTo ctx (+ bar-x 4) bar-y)
+      (.arcTo ctx (+ bar-x 8) bar-y (+ bar-x 8) (+ bar-y 4) 4)
+      (.lineTo ctx (+ bar-x 8) (+ bar-y bar-h -4))
+      (.arcTo ctx (+ bar-x 8) (+ bar-y bar-h) (+ bar-x 4) (+ bar-y bar-h) 4)
+      (.lineTo ctx (+ bar-x 4) (+ bar-y bar-h))
+      (.arcTo ctx bar-x (+ bar-y bar-h) bar-x (+ bar-y bar-h -4) 4)
+      (.lineTo ctx bar-x (+ bar-y 4))
+      (.arcTo ctx bar-x bar-y (+ bar-x 4) bar-y 4)
+      (.fill ctx)
+      ;; fill
+      (let [fill-h (* progress bar-h)
+            fill-y (+ bar-y (- bar-h fill-h))]
+        (set! (.-fillStyle ctx) "#2c5f8a")
+        (.fillRect ctx bar-x fill-y 8 fill-h))
+      ;; label
+      (set! (.-fillStyle ctx) "#555")
+      (set! (.-font ctx) "6px monospace")
+      (set! (.-textAlign ctx) "center")
+      (.save ctx)
+      (.translate ctx (+ bar-x 4) (+ bar-y (/ bar-h 2)))
+      (.rotate ctx (- (/ js/Math.PI 2)))
+      (.fillText ctx "PROGRESS" 0 0)
+      (.restore ctx))
 
-    ;; Frustration bar at bottom
+    ;; Frustration bar at bottom (styled)
     (let [frust (:frustration st)
           bar-w (- canvas-w 40)
           bar-x 20
           bar-y (- canvas-h 22)]
+      ;; track
       (set! (.-fillStyle ctx) "#d4cfc8")
       (.fillRect ctx bar-x bar-y bar-w 10)
-      (set! (.-fillStyle ctx)
-            (cond (< frust 40) "#f39c12"
-                  (< frust 70) "#e67e22"
-                  :else "#c0392b"))
-      (.fillRect ctx bar-x bar-y (* bar-w (/ frust 100)) 10)
+      ;; fill with gradient feel
+      (let [fill-w (* bar-w (/ frust 100))
+            col (cond (< frust 40) "#f39c12"
+                      (< frust 70) "#e67e22"
+                      :else "#c0392b")]
+        (set! (.-fillStyle ctx) col)
+        (.fillRect ctx bar-x bar-y fill-w 10)
+        ;; inner highlight
+        (set! (.-fillStyle ctx) "rgba(255,255,255,0.15)")
+        (.fillRect ctx bar-x bar-y fill-w 4))
+      ;; outline
+      (set! (.-strokeStyle ctx) "#bbb")
+      (set! (.-lineWidth ctx) 0.5)
+      (.strokeRect ctx bar-x bar-y bar-w 10)
+      ;; label
       (set! (.-fillStyle ctx) "#2c3e50")
-      (set! (.-font ctx) "8px monospace")
+      (set! (.-font ctx) "bold 8px monospace")
       (set! (.-textAlign ctx) "left")
-      (.fillText ctx "PATIENCE" (+ bar-x 2) (- bar-y 3)))
+      (.fillText ctx "PATIENCE" (+ bar-x 2) (- bar-y 3))
+      ;; percentage
+      (set! (.-textAlign ctx) "right")
+      (.fillText ctx (str (js/Math.floor frust) "%") (+ bar-x bar-w) (- bar-y 3)))
 
-    ;; Commentary
+    ;; Commentary (rounded box)
     (when (:commentary st)
-      (set! (.-fillStyle ctx) "rgba(44,62,80,0.9)")
-      (.fillRect ctx 5 (- canvas-h 48) (- canvas-w 10) 22)
-      (set! (.-fillStyle ctx) "#ecf0f1")
-      (set! (.-font ctx) "10px 'Courier New',monospace")
-      (set! (.-textAlign ctx) "center")
-      (.fillText ctx (:commentary st) (/ canvas-w 2) (- canvas-h 33)))
+      (let [cx 5 cy (- canvas-h 48) cw (- canvas-w 10) ch 22]
+        (set! (.-fillStyle ctx) "rgba(44,62,80,0.92)")
+        (.beginPath ctx)
+        (.moveTo ctx (+ cx 4) cy)
+        (.lineTo ctx (+ cx cw -4) cy)
+        (.quadraticCurveTo ctx (+ cx cw) cy (+ cx cw) (+ cy 4))
+        (.lineTo ctx (+ cx cw) (+ cy ch -4))
+        (.quadraticCurveTo ctx (+ cx cw) (+ cy ch) (+ cx cw -4) (+ cy ch))
+        (.lineTo ctx (+ cx 4) (+ cy ch))
+        (.quadraticCurveTo ctx cx (+ cy ch) cx (+ cy ch -4))
+        (.lineTo ctx cx (+ cy 4))
+        (.quadraticCurveTo ctx cx cy (+ cx 4) cy)
+        (.fill ctx)
+        (set! (.-fillStyle ctx) "#ecf0f1")
+        (set! (.-font ctx) "10px 'Courier New',monospace")
+        (set! (.-textAlign ctx) "center")
+        (.fillText ctx (:commentary st) (/ canvas-w 2) (- canvas-h 33))))
 
     ;; Game Over
     (when (:over st)
-      (set! (.-fillStyle ctx) "rgba(0,0,0,0.7)")
+      ;; dark overlay with vignette
+      (set! (.-fillStyle ctx) "rgba(0,0,0,0.75)")
       (.fillRect ctx 0 0 canvas-w canvas-h)
-      (let [rage (>= (:frustration st) 100)]
+      (let [rage (>= (:frustration st) 100)
+            cx (/ canvas-w 2)
+            cy (/ canvas-h 2)]
+        ;; panel bg
+        (set! (.-fillStyle ctx) "rgba(30,30,30,0.95)")
+        (.fillRect ctx 40 (- cy 85) (- canvas-w 80) 185)
+        (set! (.-strokeStyle ctx) (if rage "#e74c3c" "#27ae60"))
+        (set! (.-lineWidth ctx) 2)
+        (.strokeRect ctx 40 (- cy 85) (- canvas-w 80) 185)
+        ;; title
         (set! (.-fillStyle ctx) (if rage "#e74c3c" "#27ae60"))
         (set! (.-font ctx) "bold 20px 'Courier New',monospace")
         (set! (.-textAlign ctx) "center")
-        (.fillText ctx (if rage "YOU SNAPPED" "YOU MADE IT?!")
-                   (/ canvas-w 2) (- (/ canvas-h 2) 60))
+        (.fillText ctx (if rage "YOU SNAPPED" "YOU MADE IT?!") cx (- cy 55))
+        ;; stats
         (set! (.-fillStyle ctx) "#ecf0f1")
         (set! (.-font ctx) "13px 'Courier New',monospace")
-        (.fillText ctx (str "Time wasted: " (:score st) " min")
-                   (/ canvas-w 2) (- (/ canvas-h 2) 30))
-        (.fillText ctx (str "Times redirected: " (:redirects st))
-                   (/ canvas-w 2) (- (/ canvas-h 2) 10))
-        (.fillText ctx (str "Times almost there: " (:times-near-front st))
-                   (/ canvas-w 2) (+ (/ canvas-h 2) 10))
+        (.fillText ctx (str "Time wasted: " (:score st) " min") cx (- cy 25))
+        (.fillText ctx (str "Times redirected: " (:redirects st)) cx (- cy 5))
+        (.fillText ctx (str "Times almost there: " (:times-near-front st)) cx (+ cy 15))
         (when (:commentary st)
           (set! (.-fillStyle ctx) "#f39c12")
           (set! (.-font ctx) "italic 10px 'Courier New',monospace")
-          (.fillText ctx (:commentary st) (/ canvas-w 2) (+ (/ canvas-h 2) 40)))
+          (.fillText ctx (:commentary st) cx (+ cy 45)))
         (set! (.-fillStyle ctx) "#bdc3c7")
         (set! (.-font ctx) "11px 'Courier New',monospace")
-        (.fillText ctx "Tap or Space to try again" (/ canvas-w 2) (+ (/ canvas-h 2) 70))))
+        (.fillText ctx "Tap or Space to try again" cx (+ cy 75))))
 
     ;; Paused
     (when (and (:paused st) (not (:over st)))
-      (set! (.-fillStyle ctx) "rgba(0,0,0,0.5)")
+      (set! (.-fillStyle ctx) "rgba(0,0,0,0.55)")
       (.fillRect ctx 0 0 canvas-w canvas-h)
-      (set! (.-fillStyle ctx) "#ecf0f1")
-      (set! (.-font ctx) "bold 18px 'Courier New',monospace")
-      (set! (.-textAlign ctx) "center")
-      (.fillText ctx "PAUSED" (/ canvas-w 2) (- (/ canvas-h 2) 10))
-      (set! (.-font ctx) "11px 'Courier New',monospace")
-      (.fillText ctx "(the line is also paused. as always.)" (/ canvas-w 2) (+ (/ canvas-h 2) 15)))))
+      ;; panel
+      (let [cx (/ canvas-w 2) cy (/ canvas-h 2)]
+        (set! (.-fillStyle ctx) "rgba(30,30,30,0.9)")
+        (.fillRect ctx 60 (- cy 35) (- canvas-w 120) 70)
+        (set! (.-strokeStyle ctx) "#f39c12")
+        (set! (.-lineWidth ctx) 1)
+        (.strokeRect ctx 60 (- cy 35) (- canvas-w 120) 70)
+        (set! (.-fillStyle ctx) "#ecf0f1")
+        (set! (.-font ctx) "bold 18px 'Courier New',monospace")
+        (set! (.-textAlign ctx) "center")
+        (.fillText ctx "PAUSED" cx (- cy 8))
+        (set! (.-font ctx) "10px 'Courier New',monospace")
+        (set! (.-fillStyle ctx) "#95a5a6")
+        (.fillText ctx "(the line is also paused. as always.)" cx (+ cy 15))))))
 
 (defn update-display [st]
   (let [se (js/document.getElementById "score")
