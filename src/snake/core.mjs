@@ -34,16 +34,24 @@ const tmpl1 = squint_core.nth(redirect_lines, Math.floor((Math.random() * squint
 return tmpl1.replace("%d", `${(lane + 1)??''}`);
 
 };
+var person_types = [({"color": "#95a5a6", "size": 11}), ({"color": "#7f8c8d", "size": 12}), ({"color": "#8e6e53", "size": 11}), ({"color": "#a0522d", "size": 10}), ({"color": "#6b7b8d", "size": 12}), ({"color": "#9b7cb8", "size": 11}), ({"color": "#5d8a6b", "size": 11}), ({"color": "#b07d62", "size": 13}), ({"color": "#708090", "size": 10}), ({"color": "#a0856e", "size": 12})];
+var person_hash = function (lane, y) {
+const h1 = ((0 | (lane * 7919)) ^ (0 | (Math.floor(y) * 131)));
+return Math.abs(h1);
+
+};
 var init_lane_people = function () {
 const people1 = squint_core.atom([]);
 for (let G__2 of squint_core.iterable(squint_core.range(num_lanes))) {
 const lane3 = G__2;
-const n4 = (8 + Math.floor((Math.random() * 12)));
+const n4 = (12 + Math.floor((Math.random() * 8)));
 for (let G__5 of squint_core.iterable(squint_core.range(n4))) {
 const i6 = G__5;
-const y7 = (queue_bottom - (i6 * (18 + (Math.random() * 10))));
+const y7 = (queue_bottom - (i6 * (14 + (Math.random() * 8))));
+const xoff8 = ((Math.random() * 16) - 8);
+const ptype9 = Math.floor((Math.random() * squint_core.count(person_types)));
 if ((y7 > (queue_top + 30))) {
-squint_core.swap_BANG_(people1, squint_core.conj, ({"lane": lane3, "y": y7}))}
+squint_core.swap_BANG_(people1, squint_core.conj, ({"lane": lane3, "y": y7, "xoff": xoff8, "ptype": ptype9}))}
 }
 };
 return squint_core.deref(people1);
@@ -83,124 +91,125 @@ return (squint_core._EQ_(squint_core.get(ev, "lane"), lane3) && (squint_core.get
 const effective_speed9 = ((squint_core.truth_(lane_blocked7)) ? (0) : (speed4));
 const new_y10 = (squint_core.get(st, "player-y") - effective_speed9);
 const near_front11 = (new_y10 < (queue_top + 50));
-const redirect_cooldown12 = squint_core.get(st, "redirect-timer");
-const should_redirect13 = (near_front11 && ((redirect_cooldown12 < 1) && ((squint_core.get(st, "times-near-front") > 0) && (Math.random() < 0.7))));
-const first_time_near14 = (near_front11 && (squint_core.get(st, "times-near-front") === 0));
-const force_redirect15 = (() => {
-const and__23554__auto__16 = first_time_near14;
-if (squint_core.truth_(and__23554__auto__16)) {
-return (redirect_cooldown12 < 1)} else {
-return and__23554__auto__16};
+const over_2h12 = (squint_core.get(st, "score") >= 120);
+const redirect_cooldown13 = squint_core.get(st, "redirect-timer");
+const should_redirect14 = (near_front11 && (!over_2h12 && ((redirect_cooldown13 < 1) && ((squint_core.get(st, "times-near-front") > 0) && (Math.random() < 0.7)))));
+const first_time_near15 = (near_front11 && (squint_core.get(st, "times-near-front") === 0));
+const force_redirect16 = (() => {
+const and__23554__auto__17 = first_time_near15;
+if (squint_core.truth_(and__23554__auto__17)) {
+return ((redirect_cooldown13 < 1) && !over_2h12)} else {
+return and__23554__auto__17};
 
 })();
-const do_redirect17 = (() => {
-const or__23522__auto__18 = should_redirect13;
-if (squint_core.truth_(or__23522__auto__18)) {
-return or__23522__auto__18} else {
-return force_redirect15};
+const do_redirect18 = (() => {
+const or__23522__auto__19 = should_redirect14;
+if (squint_core.truth_(or__23522__auto__19)) {
+return or__23522__auto__19} else {
+return force_redirect16};
 
 })();
-const other_lanes19 = squint_core.vec(squint_core.filter((function (_PERCENT_1) {
+const other_lanes20 = squint_core.vec(squint_core.filter((function (_PERCENT_1) {
 return !squint_core._EQ_(_PERCENT_1, lane3);
 
 }), squint_core.range(num_lanes)));
-const redirect_lane20 = ((squint_core.truth_(do_redirect17)) ? (squint_core.nth(other_lanes19, Math.floor((Math.random() * squint_core.count(other_lanes19))))) : (null));
-const add_minute21 = (squint_core.mod(ticks2, 90) === 0);
-const new_score22 = ((add_minute21) ? ((squint_core.get(st, "score") + 1)) : (squint_core.get(st, "score")));
-const new_frust23 = squint_core.min(100, (squint_core.get(st, "frustration") + ((squint_core.truth_(lane_blocked7)) ? (0.15) : (0.03)) + ((squint_core.truth_(do_redirect17)) ? (15) : (0))));
-const ct24 = squint_core.get(st, "commentary-timer");
-const show_comment25 = (squint_core.mod(ticks2, 150) === 0);
-const new_comment26 = ((squint_core.truth_(do_redirect17)) ? (rand_redirect_line(redirect_lane20)) : (((show_comment25) ? (rand_commentary()) : ((("else") ? (squint_core.get(st, "commentary")) : (null))))));
-const new_ct27 = ((squint_core.truth_((() => {
-const or__23522__auto__28 = do_redirect17;
-if (squint_core.truth_(or__23522__auto__28)) {
-return or__23522__auto__28} else {
-return show_comment25};
+const redirect_lane21 = ((squint_core.truth_(do_redirect18)) ? (squint_core.nth(other_lanes20, Math.floor((Math.random() * squint_core.count(other_lanes20))))) : (null));
+const add_minute22 = (squint_core.mod(ticks2, 90) === 0);
+const new_score23 = ((add_minute22) ? ((squint_core.get(st, "score") + 1)) : (squint_core.get(st, "score")));
+const new_frust24 = squint_core.min(100, (squint_core.get(st, "frustration") + ((squint_core.truth_(lane_blocked7)) ? (0.15) : (0.03)) + ((squint_core.truth_(do_redirect18)) ? (15) : (0))));
+const ct25 = squint_core.get(st, "commentary-timer");
+const show_comment26 = (squint_core.mod(ticks2, 150) === 0);
+const new_comment27 = ((squint_core.truth_(do_redirect18)) ? (rand_redirect_line(redirect_lane21)) : (((show_comment26) ? (rand_commentary()) : ((("else") ? (squint_core.get(st, "commentary")) : (null))))));
+const new_ct28 = ((squint_core.truth_((() => {
+const or__23522__auto__29 = do_redirect18;
+if (squint_core.truth_(or__23522__auto__29)) {
+return or__23522__auto__29} else {
+return show_comment26};
 
-})())) ? (0) : ((ct24 + 1)));
-const moved_people29 = squint_core.vec(squint_core.map((function (p) {
-const pbooth30 = squint_core.nth(squint_core.get(st, "booths"), squint_core.get(p, "lane"));
-const pbooth_closed31 = squint_core.not(squint_core.get(pbooth30, "open"));
-const pspeed32 = (base_speed * squint_core.nth(squint_core.get(st, "lane-speeds"), squint_core.get(p, "lane")) * 0.7);
-const blocked33 = (() => {
-const or__23522__auto__34 = pbooth_closed31;
-if (or__23522__auto__34) {
-return or__23522__auto__34} else {
+})())) ? (0) : ((ct25 + 1)));
+const moved_people30 = squint_core.vec(squint_core.map((function (p) {
+const pbooth31 = squint_core.nth(squint_core.get(st, "booths"), squint_core.get(p, "lane"));
+const pbooth_closed32 = squint_core.not(squint_core.get(pbooth31, "open"));
+const pspeed33 = (base_speed * squint_core.nth(squint_core.get(st, "lane-speeds"), squint_core.get(p, "lane")) * 0.7);
+const blocked34 = (() => {
+const or__23522__auto__35 = pbooth_closed32;
+if (or__23522__auto__35) {
+return or__23522__auto__35} else {
 return squint_core.some((function (ev) {
 return (squint_core._EQ_(squint_core.get(ev, "lane"), squint_core.get(p, "lane")) && (squint_core.get(ev, "timer") > 0));
 
 }), squint_core.get(st, "lane-events"))};
 
 })();
-const ps35 = ((squint_core.truth_(blocked33)) ? (0) : (pspeed32));
-return squint_core.update(p, "y", squint_core._, ps35);
+const ps36 = ((squint_core.truth_(blocked34)) ? (0) : (pspeed33));
+return squint_core.update(p, "y", squint_core._, ps36);
 
 }), squint_core.get(st, "lane-people")));
-const alive_people36 = squint_core.vec(squint_core.filter((function (p) {
+const alive_people37 = squint_core.vec(squint_core.filter((function (p) {
 return (squint_core.get(p, "y") > (queue_top + 10));
 
-}), moved_people29));
-const spawn_people37 = (squint_core.mod(ticks2, 20) === 0);
-const new_people38 = ((spawn_people37) ? (squint_core.into(alive_people36, squint_core.lazy((function* () {
-for (let G__39 of squint_core.iterable(squint_core.range(num_lanes))) {
-const l40 = G__39;
-const lane_count41 = squint_core.count(squint_core.filter((function (_PERCENT_1) {
-return squint_core._EQ_(squint_core.get(_PERCENT_1, "lane"), l40);
+}), moved_people30));
+const spawn_people38 = (squint_core.mod(ticks2, 12) === 0);
+const new_people39 = ((spawn_people38) ? (squint_core.into(alive_people37, squint_core.lazy((function* () {
+for (let G__40 of squint_core.iterable(squint_core.range(num_lanes))) {
+const l41 = G__40;
+const lane_count42 = squint_core.count(squint_core.filter((function (_PERCENT_1) {
+return squint_core._EQ_(squint_core.get(_PERCENT_1, "lane"), l41);
 
-}), alive_people36));
-if ((lane_count41 < 12)) {
-yield ({"lane": l40, "y": (queue_bottom + rand_between(-10, 10))});}
+}), alive_people37));
+if ((lane_count42 < 18)) {
+yield ({"lane": l41, "y": (queue_bottom + rand_between(-5, 5)), "xoff": ((Math.random() * 20) - 10), "ptype": Math.floor((Math.random() * squint_core.count(person_types)))});}
 }
 return null;
 
-})))) : (alive_people36));
-const ut42 = squint_core.get(st, "us-timer");
-const spawn_us43 = (squint_core.mod(ticks2, 60) === 0);
-const new_us44 = squint_core.vec(squint_core.filter((function (c) {
+})))) : (alive_people37));
+const ut43 = squint_core.get(st, "us-timer");
+const spawn_us44 = (squint_core.mod(ticks2, 60) === 0);
+const new_us45 = squint_core.vec(squint_core.filter((function (c) {
 return (squint_core.get(c, "y") > (queue_top - 20));
 
 }), squint_core.map((function (c) {
 return squint_core.update(c, "y", squint_core._, squint_core.get(c, "speed"));
 
 }), squint_core.get(st, "us-citizens"))));
-const final_us45 = ((spawn_us43) ? (squint_core.conj(new_us44, ({"y": queue_bottom, "speed": (2 + (Math.random() * 2))}))) : (new_us44));
-const new_events46 = squint_core.vec(squint_core.map((function (ev) {
+const final_us46 = ((spawn_us44) ? (squint_core.conj(new_us45, ({"y": queue_bottom, "speed": (2 + (Math.random() * 2))}))) : (new_us45));
+const new_events47 = squint_core.vec(squint_core.map((function (ev) {
 return squint_core.update(ev, "timer", squint_core.dec);
 
 }), squint_core.get(st, "lane-events")));
-const spawn_event47 = ((squint_core.mod(ticks2, 200) === 0) && (Math.random() < 0.6));
-const event_lane48 = Math.floor((Math.random() * num_lanes));
-const final_events49 = ((squint_core.truth_(spawn_event47)) ? (squint_core.conj(squint_core.vec(squint_core.filter((function (_PERCENT_1) {
+const spawn_event48 = ((squint_core.mod(ticks2, 200) === 0) && (Math.random() < 0.6));
+const event_lane49 = Math.floor((Math.random() * num_lanes));
+const final_events50 = ((squint_core.truth_(spawn_event48)) ? (squint_core.conj(squint_core.vec(squint_core.filter((function (_PERCENT_1) {
 return (squint_core.get(_PERCENT_1, "timer") > 0);
 
-}), new_events46)), ({"lane": event_lane48, "type": (((Math.random() < 0.5)) ? ("break") : ("scanner")), "timer": 180}))) : (squint_core.vec(squint_core.filter((function (_PERCENT_1) {
+}), new_events47)), ({"lane": event_lane49, "type": (((Math.random() < 0.5)) ? ("break") : ("scanner")), "timer": 180}))) : (squint_core.vec(squint_core.filter((function (_PERCENT_1) {
 return (squint_core.get(_PERCENT_1, "timer") > 0);
 
-}), new_events46))));
-const new_speeds50 = (((squint_core.mod(ticks2, 300) === 0)) ? (squint_core.vec(squint_core.map((function (_) {
+}), new_events47))));
+const new_speeds51 = (((squint_core.mod(ticks2, 300) === 0)) ? (squint_core.vec(squint_core.map((function (_) {
 return (0.4 + (Math.random() * 1.2));
 
 }), squint_core.range(num_lanes)))) : (squint_core.get(st, "lane-speeds")));
-const new_booths51 = (((squint_core.mod(ticks2, 400) === 0)) ? (squint_core.vec(squint_core.map((function (b) {
+const new_booths52 = (((squint_core.mod(ticks2, 400) === 0)) ? (squint_core.vec(squint_core.map((function (b) {
 if ((Math.random() < 0.3)) {
 return squint_core.update(b, "open", squint_core.not)} else {
 return b};
 
 }), squint_core.get(st, "booths")))) : (squint_core.get(st, "booths")));
-const reached_booth52 = ((new_y10 < (queue_top + 20)) && (squint_core.not(do_redirect17) && squint_core.get(booth5, "open")));
-const rage_quit53 = (new_frust23 >= 100);
-if (squint_core.truth_(do_redirect17)) {
-return squint_core.assoc(st, "player-lane", redirect_lane20, "player-y", (queue_bottom - (Math.random() * 30)), "ticks", ticks2, "score", new_score22, "redirects", (squint_core.get(st, "redirects") + 1), "times-near-front", (squint_core.get(st, "times-near-front") + 1), "redirect-timer", 300, "frustration", new_frust23, "commentary", new_comment26, "commentary-timer", new_ct27, "lane-people", new_people38, "us-citizens", final_us45, "lane-events", final_events49, "lane-speeds", new_speeds50, "booths", new_booths51)} else {
+const reached_booth53 = ((new_y10 < (queue_top + 20)) && (squint_core.not(do_redirect18) && squint_core.get(booth5, "open")));
+const rage_quit54 = (new_frust24 >= 100);
+if (squint_core.truth_(do_redirect18)) {
+return squint_core.assoc(st, "player-lane", redirect_lane21, "player-y", queue_bottom, "ticks", ticks2, "score", new_score23, "redirects", (squint_core.get(st, "redirects") + 1), "times-near-front", (squint_core.get(st, "times-near-front") + 1), "redirect-timer", 300, "frustration", new_frust24, "commentary", new_comment27, "commentary-timer", new_ct28, "lane-people", new_people39, "us-citizens", final_us46, "lane-events", final_events50, "lane-speeds", new_speeds51, "booths", new_booths52)} else {
 if (squint_core.truth_((() => {
-const or__23522__auto__54 = reached_booth52;
-if (squint_core.truth_(or__23522__auto__54)) {
-return or__23522__auto__54} else {
-return rage_quit53};
+const or__23522__auto__55 = reached_booth53;
+if (squint_core.truth_(or__23522__auto__55)) {
+return or__23522__auto__55} else {
+return rage_quit54};
 
 })())) {
-return squint_core.assoc(st, "over", true, "ticks", ticks2, "score", new_score22, "frustration", new_frust23, "commentary", ((rage_quit53) ? ("You snapped. Security is on their way.") : ("You... actually made it through?! Is this real?")))} else {
+return squint_core.assoc(st, "over", true, "ticks", ticks2, "score", new_score23, "frustration", new_frust24, "commentary", ((rage_quit54) ? ("You snapped. Security is on their way.") : ("You... actually made it through?! Is this real?")))} else {
 if ("else") {
-return squint_core.assoc(st, "player-y", squint_core.max((queue_top + 15), new_y10), "ticks", ticks2, "score", new_score22, "frustration", new_frust23, "commentary", new_comment26, "commentary-timer", new_ct27, "redirect-timer", squint_core.max(0, (redirect_cooldown12 - 1)), "lane-people", new_people38, "us-citizens", final_us45, "lane-events", final_events49, "lane-speeds", new_speeds50, "booths", new_booths51)} else {
+return squint_core.assoc(st, "player-y", squint_core.max((queue_top + 15), new_y10), "ticks", ticks2, "score", new_score23, "frustration", new_frust24, "commentary", new_comment27, "commentary-timer", new_ct28, "redirect-timer", squint_core.max(0, (redirect_cooldown13 - 1)), "lane-people", new_people39, "us-citizens", final_us46, "lane-events", final_events50, "lane-speeds", new_speeds51, "booths", new_booths52)} else {
 return null}}};
 };
 
@@ -219,9 +228,11 @@ return get_canvas().getContext("2d");
 };
 var draw_person = function (ctx, x, y, size, color) {
 ctx.save();
+const head_r1 = (size * 0.22);
+const head_y2 = (y - (size * 0.35));
 ctx.fillStyle = color;
 ctx.beginPath();
-ctx.arc(x, (y - (size * 0.35)), (size * 0.22), 0, (2 * Math.PI));
+ctx.arc(x, head_y2, head_r1, 0, (2 * Math.PI));
 ctx.fill();
 ctx.strokeStyle = color;
 ctx.lineWidth = (size * 0.13);
@@ -242,6 +253,20 @@ ctx.beginPath();
 ctx.moveTo(x, (y + (size * 0.15)));
 ctx.lineTo((x + (size * 0.15)), (y + (size * 0.4)));
 ctx.stroke();
+const h3 = squint_core.mod(person_hash(Math.floor(x), y), 5);
+if ((h3 === 0)) {
+ctx.fillStyle = "#2c3e50";
+ctx.fillRect((x - (head_r1 * 1.2)), (head_y2 - head_r1), (head_r1 * 2.4), (head_r1 * 0.5))} else {
+if ((h3 === 1)) {
+ctx.fillStyle = "#8b7355";
+ctx.fillRect((x + (size * 0.2)), (y + (size * 0.05)), 6, 5);
+ctx.strokeStyle = "#6b5335";
+ctx.lineWidth = 0.5;
+ctx.strokeRect((x + (size * 0.2)), (y + (size * 0.05)), 6, 5)} else {
+if ((h3 === 2)) {
+ctx.fillStyle = "#c0392b";
+ctx.fillRect((x + (size * 0.08)), (y - (size * 0.1)), (size * 0.18), (size * 0.22))} else {
+}}};
 return ctx.restore();
 
 };
@@ -334,44 +359,60 @@ ctx1.fillText(label21, x20, (queue_top + (queue_length / 2)))}
 for (let G__22 of squint_core.iterable(squint_core.get(st, "lane-people"))) {
 const p23 = G__22;
 if (squint_core.truth_(((squint_core.get(p23, "y") > (queue_top + 20)) && (squint_core.get(p23, "y") < (queue_bottom + 10))))) {
-draw_person(ctx1, lane_x(squint_core.get(p23, "lane")), squint_core.get(p23, "y"), 12, "#95a5a6")}
+const pt24 = squint_core.nth(person_types, squint_core.mod((() => {
+const or__23522__auto__25 = squint_core.get(p23, "ptype");
+if (squint_core.truth_(or__23522__auto__25)) {
+return or__23522__auto__25} else {
+return 0};
+
+})(), squint_core.count(person_types)));
+const xoff26 = (() => {
+const or__23522__auto__27 = squint_core.get(p23, "xoff");
+if (squint_core.truth_(or__23522__auto__27)) {
+return or__23522__auto__27} else {
+return 0};
+
+})();
+const px28 = (lane_x(squint_core.get(p23, "lane")) + xoff26);
+draw_person(ctx1, px28, squint_core.get(p23, "y"), squint_core.get(pt24, "size"), squint_core.get(pt24, "color"))}
 };
-for (let G__24 of squint_core.iterable(squint_core.get(st, "us-citizens"))) {
-const c25 = G__24;
-if (squint_core.truth_(((squint_core.get(c25, "y") > (queue_top + 10)) && (squint_core.get(c25, "y") < queue_bottom)))) {
-draw_person(ctx1, express_lane_x(), squint_core.get(c25, "y"), 13, "#27ae60")}
+for (let G__29 of squint_core.iterable(squint_core.get(st, "us-citizens"))) {
+const c30 = G__29;
+if (squint_core.truth_(((squint_core.get(c30, "y") > (queue_top + 10)) && (squint_core.get(c30, "y") < queue_bottom)))) {
+const xoff31 = (6 * Math.sin((squint_core.get(c30, "y") * 0.3)));
+draw_person(ctx1, (express_lane_x() + xoff31), squint_core.get(c30, "y"), 13, "#27ae60")}
 };
-const px26 = lane_x(squint_core.get(st, "player-lane"));
-const py27 = squint_core.get(st, "player-y");
+const px32 = lane_x(squint_core.get(st, "player-lane"));
+const py33 = squint_core.get(st, "player-y");
 ctx1.fillStyle = "rgba(41,128,185,0.15)";
 ctx1.beginPath();
-ctx1.arc(px26, py27, 14, 0, (2 * Math.PI));
+ctx1.arc(px32, py33, 14, 0, (2 * Math.PI));
 ctx1.fill();
-draw_person(ctx1, px26, py27, 16, "#2c5f8a");
+draw_person(ctx1, px32, py33, 16, "#2c5f8a");
 ctx1.fillStyle = "#2c5f8a";
 ctx1.font = "bold 8px monospace";
 ctx1.textAlign = "center";
-ctx1.fillText("YOU", px26, (py27 - 14));
-const progress28 = ((queue_bottom - squint_core.get(st, "player-y")) / queue_length);
-const bar_h29 = 200;
-const bar_x30 = (canvas_w - 15);
-const bar_y31 = (queue_top + 50);
+ctx1.fillText("YOU", px32, (py33 - 14));
+const progress34 = ((queue_bottom - squint_core.get(st, "player-y")) / queue_length);
+const bar_h35 = 200;
+const bar_x36 = (canvas_w - 15);
+const bar_y37 = (queue_top + 50);
 ctx1.fillStyle = "#ccc7be";
-ctx1.fillRect(bar_x30, bar_y31, 8, bar_h29);
+ctx1.fillRect(bar_x36, bar_y37, 8, bar_h35);
 ctx1.fillStyle = "#2c5f8a";
-ctx1.fillRect(bar_x30, (bar_y31 + (bar_h29 - (progress28 * bar_h29))), 8, (progress28 * bar_h29));
-const frust32 = squint_core.get(st, "frustration");
-const bar_w33 = (canvas_w - 40);
-const bar_x34 = 20;
-const bar_y35 = (canvas_h - 22);
+ctx1.fillRect(bar_x36, (bar_y37 + (bar_h35 - (progress34 * bar_h35))), 8, (progress34 * bar_h35));
+const frust38 = squint_core.get(st, "frustration");
+const bar_w39 = (canvas_w - 40);
+const bar_x40 = 20;
+const bar_y41 = (canvas_h - 22);
 ctx1.fillStyle = "#d4cfc8";
-ctx1.fillRect(bar_x34, bar_y35, bar_w33, 10);
-ctx1.fillStyle = (((frust32 < 40)) ? ("#f39c12") : ((((frust32 < 70)) ? ("#e67e22") : ((("else") ? ("#c0392b") : (null))))));
-ctx1.fillRect(bar_x34, bar_y35, (bar_w33 * (frust32 / 100)), 10);
+ctx1.fillRect(bar_x40, bar_y41, bar_w39, 10);
+ctx1.fillStyle = (((frust38 < 40)) ? ("#f39c12") : ((((frust38 < 70)) ? ("#e67e22") : ((("else") ? ("#c0392b") : (null))))));
+ctx1.fillRect(bar_x40, bar_y41, (bar_w39 * (frust38 / 100)), 10);
 ctx1.fillStyle = "#2c3e50";
 ctx1.font = "8px monospace";
 ctx1.textAlign = "left";
-ctx1.fillText("PATIENCE", (bar_x34 + 2), (bar_y35 - 3));
+ctx1.fillText("PATIENCE", (bar_x40 + 2), (bar_y41 - 3));
 if (squint_core.truth_(squint_core.get(st, "commentary"))) {
 ctx1.fillStyle = "rgba(44,62,80,0.9)";
 ctx1.fillRect(5, (canvas_h - 48), (canvas_w - 10), 22);
@@ -382,11 +423,11 @@ ctx1.fillText(squint_core.get(st, "commentary"), (canvas_w / 2), (canvas_h - 33)
 if (squint_core.truth_(squint_core.get(st, "over"))) {
 ctx1.fillStyle = "rgba(0,0,0,0.7)";
 ctx1.fillRect(0, 0, canvas_w, canvas_h);
-const rage36 = (squint_core.get(st, "frustration") >= 100);
-ctx1.fillStyle = ((rage36) ? ("#e74c3c") : ("#27ae60"));
+const rage42 = (squint_core.get(st, "frustration") >= 100);
+ctx1.fillStyle = ((rage42) ? ("#e74c3c") : ("#27ae60"));
 ctx1.font = "bold 20px 'Courier New',monospace";
 ctx1.textAlign = "center";
-ctx1.fillText(((rage36) ? ("YOU SNAPPED") : ("YOU MADE IT?!")), (canvas_w / 2), ((canvas_h / 2) - 60));
+ctx1.fillText(((rage42) ? ("YOU SNAPPED") : ("YOU MADE IT?!")), (canvas_w / 2), ((canvas_h / 2) - 60));
 ctx1.fillStyle = "#ecf0f1";
 ctx1.font = "13px 'Courier New',monospace";
 ctx1.fillText(`${"Time wasted: "}${squint_core.get(st, "score")??''}${" min"}`, (canvas_w / 2), ((canvas_h / 2) - 30));
@@ -400,10 +441,10 @@ ctx1.fillStyle = "#bdc3c7";
 ctx1.font = "11px 'Courier New',monospace";
 ctx1.fillText("Tap or Space to try again", (canvas_w / 2), ((canvas_h / 2) + 70))};
 if (squint_core.truth_((() => {
-const and__23554__auto__37 = squint_core.get(st, "paused");
-if (squint_core.truth_(and__23554__auto__37)) {
+const and__23554__auto__43 = squint_core.get(st, "paused");
+if (squint_core.truth_(and__23554__auto__43)) {
 return squint_core.not(squint_core.get(st, "over"))} else {
-return and__23554__auto__37};
+return and__23554__auto__43};
 
 })())) {
 ctx1.fillStyle = "rgba(0,0,0,0.5)";
@@ -456,7 +497,7 @@ return null} else {
 const current2 = squint_core.get(squint_core.deref(state), "player-lane");
 const target3 = (current2 + dir);
 if (squint_core.truth_(((target3 >= 0) && (target3 < num_lanes)))) {
-return squint_core.swap_BANG_(state, squint_core.assoc, "player-lane", target3);
+return squint_core.swap_BANG_(state, squint_core.assoc, "player-lane", target3, "player-y", queue_bottom);
 };
 };
 
@@ -580,4 +621,4 @@ if ((document.readyState === "loading")) {
 document.addEventListener("DOMContentLoaded", init)} else {
 init()};
 
-export { canvas_h, rand_redirect_line, move_forward, reset_game, rand_between, touch_st, draw_suitcase, lane_w, commentary, start_loop, init_lane_people, num_lanes, queue_length, express_lane_x, tick_ms, game_tick, base_speed, player_size, lane_x, get_canvas, handle_key, switch_lane, draw_person, get_ctx, queue_bottom, rand_commentary, render, init_booths, setup_dpad, state, redirect_lines, init, handle_te, update_display, canvas_w, resize, handle_ts, queue_top }
+export { canvas_h, rand_redirect_line, move_forward, reset_game, rand_between, touch_st, draw_suitcase, lane_w, commentary, start_loop, init_lane_people, num_lanes, queue_length, express_lane_x, tick_ms, game_tick, base_speed, player_size, person_types, lane_x, get_canvas, handle_key, switch_lane, draw_person, get_ctx, queue_bottom, rand_commentary, render, init_booths, setup_dpad, state, redirect_lines, init, handle_te, update_display, canvas_w, resize, person_hash, handle_ts, queue_top }
