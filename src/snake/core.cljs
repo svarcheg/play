@@ -115,14 +115,15 @@
     (let [ticks (inc (:ticks st))
           lane (:player-lane st)
           speed (* base-speed (nth (:lane-speeds st) lane))
-          ;; check if lane is blocked by event
-          lane-blocked (some (fn [ev] (and (= (:lane ev) lane) (> (:timer ev) 0)))
-                            (:lane-events st))
-          effective-speed (if lane-blocked 0 speed)
-          new-y (- (:player-y st) effective-speed)
           ;; check booth at this lane
           booth (nth (:booths st) lane)
           booth-closed (not (:open booth))
+          ;; check if lane is blocked by event or closed booth
+          lane-blocked (or booth-closed
+                           (some (fn [ev] (and (= (:lane ev) lane) (> (:timer ev) 0)))
+                                 (:lane-events st)))
+          effective-speed (if lane-blocked 0 speed)
+          new-y (- (:player-y st) effective-speed)
           ;; near the front?
           near-front (< new-y (+ queue-top 50))
           ;; THE CRUEL REDIRECT
@@ -155,13 +156,27 @@
                         :else (:commentary st))
           new-ct (if (or do-redirect show-comment) 0 (inc ct))
           ;; move other people
-          new-people (vec (map (fn [p]
-                                 (let [pspeed (* base-speed (nth (:lane-speeds st) (:lane p)) 0.7)
-                                       blocked (some (fn [ev] (and (= (:lane ev) (:lane p)) (> (:timer ev) 0)))
-                                                     (:lane-events st))
-                                       ps (if blocked 0 pspeed)]
-                                   (update p :y - ps)))
-                               (:lane-people st)))
+          moved-people (vec (map (fn [p]
+                                   (let [pbooth (nth (:booths st) (:lane p))
+                                         pbooth-closed (not (:open pbooth))
+                                         pspeed (* base-speed (nth (:lane-speeds st) (:lane p)) 0.7)
+                                         blocked (or pbooth-closed
+                                                     (some (fn [ev] (and (= (:lane ev) (:lane p)) (> (:timer ev) 0)))
+                                                           (:lane-events st)))
+                                         ps (if blocked 0 pspeed)]
+                                     (update p :y - ps)))
+                                 (:lane-people st)))
+          ;; remove people that went past booths, keep queue populated
+          alive-people (vec (filter (fn [p] (> (:y p) (+ queue-top 10))) moved-people))
+          ;; spawn new people at back of queue to keep lanes filled
+          spawn-people (zero? (mod ticks 20))
+          new-people (if spawn-people
+                       (into alive-people
+                             (for [l (range num-lanes)
+                                   :let [lane-count (count (filter #(= (:lane %) l) alive-people))]
+                                   :when (< lane-count 12)]
+                               {:lane l :y (+ queue-bottom (rand-between -10 10))}))
+                       alive-people)
           ;; US citizens moving fast through express lane
           ut (:us-timer st)
           spawn-us (zero? (mod ticks 60))
@@ -330,18 +345,6 @@
           (.arc ctx x yy 2.5 0 (* 2 js/Math.PI))
           (.fill ctx))))
 
-    ;; Lane labels at top
-    (set! (.-fillStyle ctx) "#7f8c8d")
-    (set! (.-font ctx) "9px monospace")
-    (set! (.-textAlign ctx) "center")
-    (doseq [i (range num-lanes)]
-      (.fillText ctx (str "LANE " (inc i)) (lane-x i) (- queue-top 5)))
-    (set! (.-fillStyle ctx) "#27ae60")
-    (.fillText ctx "EXPRESS" (express-lane-x) (- queue-top 5))
-    (set! (.-fillStyle ctx) "#27ae60")
-    (set! (.-font ctx) "7px monospace")
-    (.fillText ctx "US/GLOBAL ENTRY" (express-lane-x) (- queue-top 15))
-
     ;; Booths at top
     (.save ctx)
     (set! (.-textAlign ctx) "center")
@@ -368,6 +371,16 @@
       (.fillText ctx "TRACK" (+ ex 22) 38))
     (.restore ctx)
 
+    ;; Lane labels at top (drawn after booths so they're visible)
+    (set! (.-fillStyle ctx) "#7f8c8d")
+    (set! (.-font ctx) "9px monospace")
+    (set! (.-textAlign ctx) "center")
+    (doseq [i (range num-lanes)]
+      (.fillText ctx (str "LANE " (inc i)) (lane-x i) (- queue-top 5)))
+    (set! (.-fillStyle ctx) "#27ae60")
+    (set! (.-font ctx) "bold 9px monospace")
+    (.fillText ctx "US/GLOBAL ENTRY" (express-lane-x) (- queue-top 5))
+
     ;; Lane events (blocked lanes)
     (doseq [ev (:lane-events st)]
       (when (> (:timer ev) 0)
@@ -380,9 +393,9 @@
           (set! (.-textAlign ctx) "center")
           (.fillText ctx label x (+ queue-top (/ queue-length 2))))))
 
-    ;; Other people in queues
+    ;; Other people in queues (show full range including behind player)
     (doseq [p (:lane-people st)]
-      (when (and (> (:y p) (+ queue-top 20)) (< (:y p) queue-bottom))
+      (when (and (> (:y p) (+ queue-top 20)) (< (:y p) (+ queue-bottom 10)))
         (draw-person ctx (lane-x (:lane p)) (:y p) 12 "#95a5a6")))
 
     ;; US citizens in express lane
