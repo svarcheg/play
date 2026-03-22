@@ -95,34 +95,30 @@
     (.replace tmpl "%d" (str (inc lane)))))
 
 ;; --- Person types for visual variety ---
-(def person-types
-  [{:color "#95a5a6" :size 11}   ;; grey - default
-   {:color "#7f8c8d" :size 12}   ;; darker grey
-   {:color "#8e6e53" :size 11}   ;; brown
-   {:color "#a0522d" :size 10}   ;; sienna
-   {:color "#6b7b8d" :size 12}   ;; steel
-   {:color "#9b7cb8" :size 11}   ;; purple-ish
-   {:color "#5d8a6b" :size 11}   ;; muted green
-   {:color "#b07d62" :size 13}   ;; tall tan
-   {:color "#708090" :size 10}   ;; slate
-   {:color "#a0856e" :size 12}]) ;; khaki
+(def person-colors
+  ["#95a5a6" "#7f8c8d" "#8e6e53" "#a0522d" "#6b7b8d"
+   "#9b7cb8" "#5d8a6b" "#b07d62" "#708090" "#a0856e"
+   "#6a5acd" "#8b6969" "#556b2f" "#4a708b" "#8b7765"])
 
-;; Stable hash for a person to pick type and x-offset (no flickering)
-(defn person-hash [lane y]
-  (let [h (bit-xor (bit-or 0 (* lane 7919)) (bit-or 0 (* (js/Math.floor y) 131)))]
-    (js/Math.abs h)))
+;; accessory: 0=none 1=hat 2=suitcase 3=backpack 4=none
+(defn make-person [lane y]
+  {:lane lane
+   :y y
+   :xoff (- (* (js/Math.random) 22) 11)
+   :size (+ 9 (js/Math.floor (* (js/Math.random) 5)))
+   :color (nth person-colors (js/Math.floor (* (js/Math.random) (count person-colors))))
+   :acc (js/Math.floor (* (js/Math.random) 5))})
 
 ;; --- Init people in queues ---
+;; Pack tightly: ~10px spacing, two sub-rows per lane
 (defn init-lane-people []
   (let [people (atom [])]
     (doseq [lane (range num-lanes)]
-      (let [n (+ 12 (js/Math.floor (* (js/Math.random) 8)))]
+      (let [n (+ 25 (js/Math.floor (* (js/Math.random) 10)))]
         (doseq [i (range n)]
-          (let [y (- queue-bottom (* i (+ 14 (* (js/Math.random) 8))))
-                xoff (- (* (js/Math.random) 16) 8)
-                ptype (js/Math.floor (* (js/Math.random) (count person-types)))]
+          (let [y (- queue-bottom (* i (+ 10 (* (js/Math.random) 5))))]
             (when (> y (+ queue-top 30))
-              (swap! people conj {:lane lane :y y :xoff xoff :ptype ptype}))))))
+              (swap! people conj (make-person lane y)))))))
     @people))
 
 (defn init-booths []
@@ -190,17 +186,23 @@
                                  (:lane-people st)))
           ;; remove people that went past booths
           alive-people (vec (filter (fn [p] (> (:y p) (+ queue-top 10))) moved-people))
-          ;; continuously spawn people at back to keep lanes full (15+ per lane)
-          spawn-people (zero? (mod ticks 12))
+          ;; continuously spawn people at back to keep lanes densely packed
+          ;; spawn every 8 ticks, target 30 per lane
+          spawn-people (zero? (mod ticks 8))
           new-people (if spawn-people
                        (into alive-people
-                             (for [l (range num-lanes)
-                                   :let [lane-count (count (filter #(= (:lane %) l) alive-people))]
-                                   :when (< lane-count 18)]
-                               {:lane l
-                                :y (+ queue-bottom (rand-between -5 5))
-                                :xoff (- (* (js/Math.random) 20) 10)
-                                :ptype (js/Math.floor (* (js/Math.random) (count person-types)))}))
+                             (apply concat
+                               (for [l (range num-lanes)
+                                     :let [lane-ppl (filter #(= (:lane %) l) alive-people)
+                                           lane-count (count lane-ppl)
+                                           ;; find the max y (furthest back person)
+                                           max-y (if (pos? lane-count)
+                                                   (apply max (map :y lane-ppl))
+                                                   queue-bottom)]
+                                     :when (< lane-count 30)]
+                                 ;; spawn 1-3 people at back
+                                 (for [j (range (min 3 (- 30 lane-count)))]
+                                   (make-person l (+ max-y 10 (* j (+ 10 (rand-between 0 4)))))))))
                        alive-people)
           ;; US citizens moving fast through express lane
           ut (:us-timer st)
@@ -303,10 +305,11 @@
 (defn get-canvas [] (js/document.getElementById "game-canvas"))
 (defn get-ctx [] (.getContext (get-canvas) "2d"))
 
-(defn draw-person [ctx x y size color]
+(defn draw-person [ctx x y size color acc]
   (.save ctx)
   (let [head-r (* size 0.22)
-        head-y (- y (* size 0.35))]
+        head-y (- y (* size 0.35))
+        a (or acc 0)]
     ;; head
     (set! (.-fillStyle ctx) color)
     (.beginPath ctx)
@@ -334,34 +337,19 @@
     (.moveTo ctx x (+ y (* size 0.15)))
     (.lineTo ctx (+ x (* size 0.15)) (+ y (* size 0.4)))
     (.stroke ctx)
-    ;; accessory based on hash of position (stable per person)
-    (let [h (mod (person-hash (js/Math.floor x) y) 5)]
-      (cond
-        ;; hat
-        (= h 0)
-        (do (set! (.-fillStyle ctx) "#2c3e50")
-            (.fillRect ctx (- x (* head-r 1.2)) (- head-y head-r) (* head-r 2.4) (* head-r 0.5)))
-        ;; suitcase on right
-        (= h 1)
-        (do (set! (.-fillStyle ctx) "#8b7355")
-            (.fillRect ctx (+ x (* size 0.2)) (+ y (* size 0.05)) 6 5)
-            (set! (.-strokeStyle ctx) "#6b5335")
-            (set! (.-lineWidth ctx) 0.5)
-            (.strokeRect ctx (+ x (* size 0.2)) (+ y (* size 0.05)) 6 5))
-        ;; backpack
-        (= h 2)
-        (do (set! (.-fillStyle ctx) "#c0392b")
-            (.fillRect ctx (+ x (* size 0.08)) (- y (* size 0.1)) (* size 0.18) (* size 0.22)))
-        ;; nothing for 3, 4 - plain person
-        )))
+    ;; accessory (stored on person, stable)
+    (cond
+      (= a 1)
+      (do (set! (.-fillStyle ctx) "#2c3e50")
+          (.fillRect ctx (- x (* head-r 1.2)) (- head-y head-r) (* head-r 2.4) (* head-r 0.5)))
+      (= a 2)
+      (do (set! (.-fillStyle ctx) "#8b7355")
+          (.fillRect ctx (+ x (* size 0.2)) (+ y (* size 0.05)) 6 5))
+      (= a 3)
+      (do (set! (.-fillStyle ctx) "#c0392b")
+          (.fillRect ctx (+ x (* size 0.08)) (- y (* size 0.1)) (* size 0.18) (* size 0.22)))))
   (.restore ctx))
 
-(defn draw-suitcase [ctx x y]
-  (set! (.-fillStyle ctx) "#8b7355")
-  (.fillRect ctx (- x 4) y 8 6)
-  (set! (.-strokeStyle ctx) "#6b5335")
-  (set! (.-lineWidth ctx) 0.5)
-  (.strokeRect ctx (- x 4) y 8 6))
 
 (defn render [st]
   (let [ctx (get-ctx)]
@@ -447,16 +435,15 @@
     ;; Other people in queues (full range, varied look, staggered positions)
     (doseq [p (:lane-people st)]
       (when (and (> (:y p) (+ queue-top 20)) (< (:y p) (+ queue-bottom 10)))
-        (let [pt (nth person-types (mod (or (:ptype p) 0) (count person-types)))
-              xoff (or (:xoff p) 0)
+        (let [xoff (or (:xoff p) 0)
               px (+ (lane-x (:lane p)) xoff)]
-          (draw-person ctx px (:y p) (:size pt) (:color pt)))))
+          (draw-person ctx px (:y p) (or (:size p) 11) (or (:color p) "#95a5a6") (:acc p)))))
 
     ;; US citizens in express lane (staggered x)
     (doseq [c (:us-citizens st)]
       (when (and (> (:y c) (+ queue-top 10)) (< (:y c) queue-bottom))
         (let [xoff (* 6 (js/Math.sin (* (:y c) 0.3)))]
-          (draw-person ctx (+ (express-lane-x) xoff) (:y c) 13 "#27ae60"))))
+          (draw-person ctx (+ (express-lane-x) xoff) (:y c) 13 "#27ae60" 0))))
 
     ;; Player (you!)
     (let [px (lane-x (:player-lane st))
@@ -467,7 +454,7 @@
       (.arc ctx px py 14 0 (* 2 js/Math.PI))
       (.fill ctx)
       ;; person
-      (draw-person ctx px py 16 "#2c5f8a")
+      (draw-person ctx px py 16 "#2c5f8a" 0)
       ;; "YOU" label
       (set! (.-fillStyle ctx) "#2c5f8a")
       (set! (.-font ctx) "bold 8px monospace")
