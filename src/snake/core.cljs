@@ -117,7 +117,7 @@
       (let [n (+ 25 (js/Math.floor (* (js/Math.random) 10)))]
         (doseq [i (range n)]
           (let [y (- queue-bottom (* i (+ 10 (* (js/Math.random) 5))))]
-            (when (> y (+ queue-top 30))
+            (when (> y queue-top)
               (swap! people conj (make-person lane y)))))))
     @people))
 
@@ -161,10 +161,10 @@
           ;; update score (1 minute every ~90 ticks ≈ 3 seconds)
           add-minute (zero? (mod ticks 90))
           new-score (if add-minute (inc (:score st)) (:score st))
-          ;; frustration builds
+          ;; frustration builds (reaches 100 around ~150 score-minutes)
           new-frust (min 100 (+ (:frustration st)
-                                (if lane-blocked 0.15 0.03)
-                                (if do-redirect 15 0)))
+                                (if lane-blocked 0.02 0.007)
+                                (if do-redirect 3 0)))
           ;; commentary
           ct (:commentary-timer st)
           show-comment (zero? (mod ticks 150))

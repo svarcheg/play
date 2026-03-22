@@ -47,7 +47,7 @@ const n4 = (25 + Math.floor((Math.random() * 10)));
 for (let G__5 of squint_core.iterable(squint_core.range(n4))) {
 const i6 = G__5;
 const y7 = (queue_bottom - (i6 * (10 + (Math.random() * 5))));
-if ((y7 > (queue_top + 30))) {
+if ((y7 > queue_top)) {
 squint_core.swap_BANG_(people1, squint_core.conj, make_person(lane3, y7))}
 }
 };
@@ -113,7 +113,7 @@ return !squint_core._EQ_(_PERCENT_1, lane3);
 const redirect_lane21 = ((squint_core.truth_(do_redirect18)) ? (squint_core.nth(other_lanes20, Math.floor((Math.random() * squint_core.count(other_lanes20))))) : (null));
 const add_minute22 = (squint_core.mod(ticks2, 90) === 0);
 const new_score23 = ((add_minute22) ? ((squint_core.get(st, "score") + 1)) : (squint_core.get(st, "score")));
-const new_frust24 = squint_core.min(100, (squint_core.get(st, "frustration") + ((squint_core.truth_(lane_blocked7)) ? (0.15) : (0.03)) + ((squint_core.truth_(do_redirect18)) ? (15) : (0))));
+const new_frust24 = squint_core.min(100, (squint_core.get(st, "frustration") + ((squint_core.truth_(lane_blocked7)) ? (0.02) : (0.007)) + ((squint_core.truth_(do_redirect18)) ? (3) : (0))));
 const ct25 = squint_core.get(st, "commentary-timer");
 const show_comment26 = (squint_core.mod(ticks2, 150) === 0);
 const new_comment27 = ((squint_core.truth_(do_redirect18)) ? (rand_redirect_line(redirect_lane21)) : (((show_comment26) ? (rand_commentary()) : ((("else") ? (squint_core.get(st, "commentary")) : (null))))));
